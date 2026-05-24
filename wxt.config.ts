@@ -10,6 +10,7 @@ export default defineConfig({
     description: "A bookmark-powered browser homepage with a reusable Digital Air design system.",
     version: "0.1.0",
     permissions: ["bookmarks", "storage"],
+    host_permissions: ["http://*/*", "https://*/*"],
     chrome_url_overrides: {
       newtab: "newtab.html"
     },

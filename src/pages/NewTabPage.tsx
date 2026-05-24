@@ -21,6 +21,7 @@ import {
   subscribeToBookmarkChanges,
   updateBookmark
 } from "../services/bookmarkService";
+import { validateBookmarkUrls } from "../services/urlValidationService";
 import type { BookmarkItem, FolderItem } from "../types/bookmarks";
 
 type EditorIntent = "create-bookmark" | "create-folder" | "edit-bookmark";
@@ -43,7 +44,9 @@ export function NewTabPage() {
   const [query, setQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isValidatingUrls, setIsValidatingUrls] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [validationMessage, setValidationMessage] = useState<string | null>(null);
   const [editorError, setEditorError] = useState<string | null>(null);
   const [editorState, setEditorState] = useState<EditorState | null>(null);
   const [editorValues, setEditorValues] = useState<BookmarkEditorValues>(EMPTY_EDITOR_VALUES);
@@ -202,6 +205,31 @@ export function NewTabPage() {
     }
   }
 
+  async function handleValidateVisibleBookmarks() {
+    if (!visibleBookmarks.length) {
+      return;
+    }
+
+    try {
+      setIsValidatingUrls(true);
+      setValidationMessage(null);
+      await validateBookmarkUrls(
+        visibleBookmarks.map((bookmark) => ({
+          id: bookmark.id,
+          url: bookmark.url
+        }))
+      );
+      await refreshBookmarks();
+      setValidationMessage(messages.newTab.urlValidation.complete(visibleBookmarks.length));
+    } catch (error) {
+      setValidationMessage(
+        error instanceof Error ? error.message : messages.newTab.urlValidation.error
+      );
+    } finally {
+      setIsValidatingUrls(false);
+    }
+  }
+
   return (
     <AppShell
       closeNavigationLabel={messages.appShell.closeNavigation}
@@ -266,6 +294,14 @@ export function NewTabPage() {
             <h2>{query ? messages.newTab.gridSearchTitle : messages.newTab.gridFolderTitle}</h2>
           </div>
           <div className="section-title-row__actions">
+            <Button
+              disabled={isValidatingUrls || !visibleBookmarks.length}
+              icon="shield"
+              onClick={handleValidateVisibleBookmarks}
+              variant="glass"
+            >
+              {isValidatingUrls ? messages.newTab.urlValidation.checking : messages.newTab.urlValidation.check}
+            </Button>
             <Button icon="sliders" variant="glass">
               {messages.newTab.folderPaths}
             </Button>
@@ -274,6 +310,7 @@ export function NewTabPage() {
             </Button>
           </div>
         </div>
+        {validationMessage ? <p className="validation-feedback">{validationMessage}</p> : null}
 
         {errorMessage ? (
           <EmptyState

@@ -39,6 +39,12 @@ export interface AppMessages {
       edit: string;
       open: string;
     };
+    urlValidation: {
+      check: string;
+      checking: string;
+      complete: (count: number) => string;
+      error: string;
+    };
     editor: {
       saveError: string;
       createBookmark: {
@@ -154,6 +160,12 @@ export const messages: Record<LanguageCode, AppMessages> = {
         edit: "Edit bookmark",
         open: "Open bookmark"
       },
+      urlValidation: {
+        check: "Check links",
+        checking: "Checking...",
+        complete: (count) => `Checked ${count} visible bookmark${count === 1 ? "" : "s"}.`,
+        error: "Unable to check links right now. Confirm network access and try again."
+      },
       editor: {
         saveError: "Unable to update browser bookmarks. Confirm the extension still has bookmark access.",
         createBookmark: {
@@ -260,6 +272,12 @@ export const messages: Record<LanguageCode, AppMessages> = {
         delete: "删除书签",
         edit: "编辑书签",
         open: "打开书签"
+      },
+      urlValidation: {
+        check: "检查链接",
+        checking: "正在检查...",
+        complete: (count) => `已检查 ${count} 个当前可见书签。`,
+        error: "暂时无法检查链接。请确认网络访问后重试。"
       },
       editor: {
         saveError: "无法更新浏览器书签。请确认扩展仍然拥有书签访问权限。",

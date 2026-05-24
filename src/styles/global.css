@@ -769,6 +769,22 @@ kbd {
   fill: rgba(0, 88, 188, 0.13);
 }
 
+.offline-icon {
+  color: var(--color-error);
+  fill: rgba(186, 26, 26, 0.12);
+}
+
+.validation-feedback {
+  width: fit-content;
+  margin: -6px 0 0;
+  border-radius: var(--radius-full);
+  background: rgba(0, 88, 188, 0.08);
+  color: var(--color-on-surface-variant);
+  font-size: var(--type-label-md-size);
+  font-weight: 650;
+  padding: 8px 12px;
+}
+
 .bookmark-card__footer {
   display: flex;
   width: 100%;

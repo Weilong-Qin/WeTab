@@ -1,4 +1,5 @@
 import { browser, type Browser } from "wxt/browser";
+import { applyUrlValidationStatuses, loadUrlValidationStatuses } from "./urlValidationService";
 import type { BookmarkItem, BookmarkViewModel, FolderItem, TagTone } from "../types/bookmarks";
 
 type BrowserBookmarkApi = typeof browser.bookmarks;
@@ -47,8 +48,16 @@ export async function loadBookmarkView(
 ): Promise<BookmarkViewModel> {
   const bookmarkApi = getBookmarkApi(labels);
 
-  const tree = await bookmarkApi.getTree();
-  return mapBookmarkTreeToView(tree, labels);
+  const [tree, urlValidationStatuses] = await Promise.all([
+    bookmarkApi.getTree(),
+    loadUrlValidationStatuses()
+  ]);
+  const view = mapBookmarkTreeToView(tree, labels);
+
+  return {
+    ...view,
+    bookmarks: applyUrlValidationStatuses(view.bookmarks, urlValidationStatuses)
+  };
 }
 
 export function subscribeToBookmarkChanges(onChange: () => void): () => void {

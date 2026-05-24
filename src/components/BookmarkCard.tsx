@@ -34,6 +34,7 @@ export function BookmarkCard({ actionLabels, bookmark, onDelete, onEdit }: Bookm
           <div className="bookmark-card__heading">
             <h3>{bookmark.title}</h3>
             {bookmark.status === "verified" ? <Icon className="verified-icon" name="check" size={16} /> : null}
+            {bookmark.status === "offline" ? <Icon className="offline-icon" name="x" size={16} /> : null}
           </div>
           <p>{bookmark.description}</p>
         </div>
@@ -85,6 +86,7 @@ export function FeatureCard({ bookmark }: BookmarkCardProps) {
         <div className="bookmark-card__heading">
           <h3>{bookmark.title}</h3>
           {bookmark.status === "verified" ? <Icon className="verified-icon" name="check" size={18} /> : null}
+          {bookmark.status === "offline" ? <Icon className="offline-icon" name="x" size={18} /> : null}
         </div>
         <p>{bookmark.description}</p>
         <div className="feature-card__meta">
