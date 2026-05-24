@@ -74,3 +74,37 @@ Filled backend Trellis specs with current extension architecture, committed Trel
 ### Next Steps
 
 - None - task complete
+
+
+## Session 3: Homepage bookmark editing
+
+**Date**: 2026-05-25
+**Task**: Homepage bookmark editing
+**Branch**: `master`
+
+### Summary
+
+Implemented homepage create/edit/delete bookmark management with service-layer native bookmark writes, localized editor UI, Vitest coverage, and a documented write-through contract. Quality gate passed: test, lint, typecheck, build.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `a3195f7` | (see git log) |
+| `95dccc8` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
