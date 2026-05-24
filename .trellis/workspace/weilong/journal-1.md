@@ -39,3 +39,38 @@ Implemented WXT React TypeScript browser new-tab MVP with native bookmark render
 ### Next Steps
 
 - None - task complete
+
+
+## Session 2: Bootstrap Trellis guidelines
+
+**Date**: 2026-05-25
+**Task**: Bootstrap Trellis guidelines
+**Branch**: `master`
+
+### Summary
+
+Filled backend Trellis specs with current extension architecture, committed Trellis workflow scaffolding, and updated frontend bookmark-service testing guidance. Quality gate passed: test, lint, typecheck, build.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `13be8cc` | (see git log) |
+| `3535e52` | (see git log) |
+| `d9dde74` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
