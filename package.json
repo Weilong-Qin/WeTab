@@ -1,0 +1,35 @@
+{
+  "name": "vtab",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wxt",
+    "clean": "node scripts/clean-generated.mjs",
+    "build": "npm run clean && wxt build",
+    "lint": "eslint . --max-warnings=0",
+    "typecheck": "tsc --noEmit",
+    "zip": "wxt zip",
+    "prepare": "wxt prepare"
+  },
+  "dependencies": {
+    "lucide-react": "^0.468.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^22.10.2",
+    "@types/react": "^19.0.2",
+    "@types/react-dom": "^19.0.2",
+    "@vitejs/plugin-react": "^4.7.0",
+    "@wxt-dev/module-react": "^1.1.3",
+    "eslint": "^10.4.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.6.0",
+    "typescript": "^5.7.2",
+    "typescript-eslint": "^8.59.4",
+    "vite": "^6.4.1",
+    "wxt": "^0.20.0"
+  }
+}

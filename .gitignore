@@ -1,0 +1,5 @@
+tmp.html
+node_modules/
+.wxt/
+.output/
+dist/
