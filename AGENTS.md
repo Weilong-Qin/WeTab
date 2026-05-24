@@ -33,7 +33,7 @@ vTab is a Chromium-first new-tab browser extension for rendering and managing na
 - `src/pages/` contains thin page assemblies that compose existing components.
 - `src/styles/` contains global CSS, design tokens, and shared component class styles.
 - `src/services/` isolates browser/platform integration boundaries from presentation components.
-- `src/data/` contains sample data used until native bookmark integration is wired in.
+- `src/data/` contains sample data for development-only previews; production pages should read browser data through services.
 - `src/types/` contains shared TypeScript view-model types.
 
 ## Design System Architecture

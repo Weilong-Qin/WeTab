@@ -9,6 +9,7 @@
 The required quality gate for this project is:
 
 ```bash
+npm run test
 npm run lint
 npm run typecheck
 npm run build
@@ -40,17 +41,20 @@ npm run build
 
 ## Testing Requirements
 
-There is no automated test runner yet. Until one is added, every change must at least pass:
+Vitest is the unit-test baseline. Every change must at least pass:
 
+* Vitest unit tests.
 * ESLint.
 * TypeScript typecheck.
 * WXT production build.
 
-For logic-heavy services, add unit tests when a test runner is introduced. Priority targets:
+For logic-heavy services, add or update unit tests. Priority targets:
 
 * `bookmarkService.ts` tree mapping and folder filtering.
 * `languageService.ts` language normalization.
 * `layoutPreferenceService.ts` width clamping.
+
+Service tests should mock WXT/browser APIs at the service boundary rather than moving browser API calls into components. For example, `bookmarkService.test.ts` mocks `wxt/browser` and verifies native bookmark tree mapping, search/filter behavior, breadcrumbs, and bookmark event refresh behavior.
 
 ---
 
@@ -61,4 +65,4 @@ For logic-heavy services, add unit tests when a test runner is introduced. Prior
 * Are UI strings localized through message dictionaries?
 * Does the sidebar/tree behavior work with nested folders?
 * Does the right pane use uniform bookmark cards unless there is an explicit product reason otherwise?
-* Did lint/typecheck/build pass sequentially?
+* Did test/lint/typecheck/build pass sequentially?
