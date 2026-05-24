@@ -11,6 +11,7 @@ export interface AppMessages {
   newTab: {
     addBookmark: string;
     addBookmarkTitle: string;
+    addFolder: string;
     heroTag: string;
     heroTitle: string;
     heroDescription: string;
@@ -32,6 +33,42 @@ export interface AppMessages {
     noBookmarksDescription: string;
     searchPlaceholder: string;
     searchAriaLabel: string;
+    deleteBookmarkConfirm: (title: string) => string;
+    bookmarkActions: {
+      delete: string;
+      edit: string;
+      open: string;
+    };
+    editor: {
+      saveError: string;
+      createBookmark: {
+        cancel: string;
+        close: string;
+        folderName: string;
+        save: string;
+        title: string;
+        titleLabel: string;
+        urlLabel: string;
+      };
+      createFolder: {
+        cancel: string;
+        close: string;
+        folderName: string;
+        save: string;
+        title: string;
+        titleLabel: string;
+        urlLabel: string;
+      };
+      editBookmark: {
+        cancel: string;
+        close: string;
+        folderName: string;
+        save: string;
+        title: string;
+        titleLabel: string;
+        urlLabel: string;
+      };
+    };
     sidebar: {
       actionLabel: string;
       brandSubtitle: string;
@@ -86,7 +123,8 @@ export const messages: Record<LanguageCode, AppMessages> = {
     },
     newTab: {
       addBookmark: "Add Bookmark",
-      addBookmarkTitle: "Bookmark editing is planned for the next MVP pass.",
+      addBookmarkTitle: "Add a bookmark to the selected browser bookmark folder.",
+      addFolder: "Add Folder",
       heroTag: "Native Bookmark Library",
       heroTitle: "vTab turns your browser bookmarks into a searchable homepage.",
       heroDescription:
@@ -110,6 +148,42 @@ export const messages: Record<LanguageCode, AppMessages> = {
         "Your browser bookmark tree is empty. Add bookmarks in Chrome and vTab will refresh automatically.",
       searchPlaceholder: "Search bookmark titles, domains, or folder paths...",
       searchAriaLabel: "Search bookmarks",
+      deleteBookmarkConfirm: (title) => `Delete "${title}" from browser bookmarks?`,
+      bookmarkActions: {
+        delete: "Delete bookmark",
+        edit: "Edit bookmark",
+        open: "Open bookmark"
+      },
+      editor: {
+        saveError: "Unable to update browser bookmarks. Confirm the extension still has bookmark access.",
+        createBookmark: {
+          cancel: "Cancel",
+          close: "Close bookmark editor",
+          folderName: "Folder name",
+          save: "Create bookmark",
+          title: "Create bookmark",
+          titleLabel: "Bookmark title",
+          urlLabel: "URL"
+        },
+        createFolder: {
+          cancel: "Cancel",
+          close: "Close folder editor",
+          folderName: "Folder name",
+          save: "Create folder",
+          title: "Create folder",
+          titleLabel: "Bookmark title",
+          urlLabel: "URL"
+        },
+        editBookmark: {
+          cancel: "Cancel",
+          close: "Close bookmark editor",
+          folderName: "Folder name",
+          save: "Save changes",
+          title: "Edit bookmark",
+          titleLabel: "Bookmark title",
+          urlLabel: "URL"
+        }
+      },
       sidebar: {
         actionLabel: "AI Classify",
         brandSubtitle: "Bookmark Home",
@@ -158,7 +232,8 @@ export const messages: Record<LanguageCode, AppMessages> = {
     },
     newTab: {
       addBookmark: "添加书签",
-      addBookmarkTitle: "书签编辑将在下一轮 MVP 中实现。",
+      addBookmarkTitle: "将书签添加到当前选中的浏览器书签文件夹。",
+      addFolder: "添加文件夹",
       heroTag: "浏览器原生书签库",
       heroTitle: "vTab 将浏览器书签变成可搜索的新标签页主页。",
       heroDescription: "浏览你已在 Chrome 中维护的文件夹层级，按标题、域名或文件夹路径搜索，并直接从新标签页打开保存的链接。",
@@ -180,6 +255,42 @@ export const messages: Record<LanguageCode, AppMessages> = {
       noBookmarksDescription: "你的浏览器书签树为空。在 Chrome 中添加书签后，vTab 会自动刷新。",
       searchPlaceholder: "搜索书签标题、域名或文件夹路径...",
       searchAriaLabel: "搜索书签",
+      deleteBookmarkConfirm: (title) => `要从浏览器书签中删除“${title}”吗？`,
+      bookmarkActions: {
+        delete: "删除书签",
+        edit: "编辑书签",
+        open: "打开书签"
+      },
+      editor: {
+        saveError: "无法更新浏览器书签。请确认扩展仍然拥有书签访问权限。",
+        createBookmark: {
+          cancel: "取消",
+          close: "关闭书签编辑器",
+          folderName: "文件夹名称",
+          save: "创建书签",
+          title: "创建书签",
+          titleLabel: "书签标题",
+          urlLabel: "URL"
+        },
+        createFolder: {
+          cancel: "取消",
+          close: "关闭文件夹编辑器",
+          folderName: "文件夹名称",
+          save: "创建文件夹",
+          title: "创建文件夹",
+          titleLabel: "书签标题",
+          urlLabel: "URL"
+        },
+        editBookmark: {
+          cancel: "取消",
+          close: "关闭书签编辑器",
+          folderName: "文件夹名称",
+          save: "保存更改",
+          title: "编辑书签",
+          titleLabel: "书签标题",
+          urlLabel: "URL"
+        }
+      },
       sidebar: {
         actionLabel: "AI 分类",
         brandSubtitle: "书签主页",

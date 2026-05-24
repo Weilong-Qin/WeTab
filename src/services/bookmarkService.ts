@@ -16,6 +16,23 @@ export interface BookmarkViewLabels {
   defaultFolderLabel: string;
 }
 
+export interface CreateBookmarkInput {
+  parentId?: string;
+  title: string;
+  url: string;
+}
+
+export interface CreateFolderInput {
+  parentId?: string;
+  title: string;
+}
+
+export interface UpdateBookmarkInput {
+  id: string;
+  title: string;
+  url: string;
+}
+
 const DEFAULT_BOOKMARK_VIEW_LABELS: BookmarkViewLabels = {
   allBookmarksLabel: "All Bookmarks",
   bookmarkAccessUnavailable:
@@ -28,29 +45,25 @@ const DEFAULT_BOOKMARK_VIEW_LABELS: BookmarkViewLabels = {
 export async function loadBookmarkView(
   labels: BookmarkViewLabels = DEFAULT_BOOKMARK_VIEW_LABELS
 ): Promise<BookmarkViewModel> {
-  const bookmarkApi = getBookmarkApi();
-
-  if (!bookmarkApi) {
-    throw new Error(labels.bookmarkAccessUnavailable);
-  }
+  const bookmarkApi = getBookmarkApi(labels);
 
   const tree = await bookmarkApi.getTree();
   return mapBookmarkTreeToView(tree, labels);
 }
 
 export function subscribeToBookmarkChanges(onChange: () => void): () => void {
-  const bookmarkApi = getBookmarkApi();
+  const bookmarkApi = getOptionalBookmarkApi();
 
   if (!bookmarkApi) {
     return () => undefined;
   }
 
   let importInProgress = false;
-  let refreshTimer: number | undefined;
+  let refreshTimer: ReturnType<typeof globalThis.setTimeout> | undefined;
 
   const clearRefreshTimer = () => {
     if (refreshTimer) {
-      window.clearTimeout(refreshTimer);
+      globalThis.clearTimeout(refreshTimer);
       refreshTimer = undefined;
     }
   };
@@ -61,7 +74,7 @@ export function subscribeToBookmarkChanges(onChange: () => void): () => void {
     }
 
     clearRefreshTimer();
-    refreshTimer = window.setTimeout(onChange, BOOKMARK_REFRESH_DELAY_MS);
+    refreshTimer = globalThis.setTimeout(onChange, BOOKMARK_REFRESH_DELAY_MS);
   };
 
   const handleImportBegan = () => {
@@ -92,6 +105,36 @@ export function subscribeToBookmarkChanges(onChange: () => void): () => void {
     bookmarkApi.onImportBegan.removeListener(handleImportBegan);
     bookmarkApi.onImportEnded.removeListener(handleImportEnded);
   };
+}
+
+export async function createBookmark(input: CreateBookmarkInput): Promise<void> {
+  const bookmarkApi = getBookmarkApi();
+  await bookmarkApi.create({
+    parentId: input.parentId,
+    title: input.title.trim(),
+    url: input.url.trim()
+  });
+}
+
+export async function createFolder(input: CreateFolderInput): Promise<void> {
+  const bookmarkApi = getBookmarkApi();
+  await bookmarkApi.create({
+    parentId: input.parentId,
+    title: input.title.trim()
+  });
+}
+
+export async function updateBookmark(input: UpdateBookmarkInput): Promise<void> {
+  const bookmarkApi = getBookmarkApi();
+  await bookmarkApi.update(input.id, {
+    title: input.title.trim(),
+    url: input.url.trim()
+  });
+}
+
+export async function deleteBookmark(bookmarkId: string): Promise<void> {
+  const bookmarkApi = getBookmarkApi();
+  await bookmarkApi.remove(bookmarkId);
 }
 
 export function filterBookmarks(
@@ -126,6 +169,14 @@ export function filterBookmarks(
 
 export function hasFolder(folders: FolderItem[], folderId: string): boolean {
   return folders.some((folder) => folder.id === folderId || hasFolder(folder.children ?? [], folderId));
+}
+
+export function resolveWritableParentFolderId(folders: FolderItem[], selectedFolderId: string): string | undefined {
+  if (selectedFolderId !== ALL_BOOKMARKS_ID && hasFolder(folders, selectedFolderId)) {
+    return selectedFolderId;
+  }
+
+  return folders.find((folder) => folder.id !== ALL_BOOKMARKS_ID)?.id;
 }
 
 export function findFolderPath(folders: FolderItem[], folderId: string): Array<{ id: string; label: string }> {
@@ -255,7 +306,17 @@ function countDescendantBookmarks(node: BrowserBookmarkNode): number {
   }, 0);
 }
 
-function getBookmarkApi(): BrowserBookmarkApi | undefined {
+function getBookmarkApi(labels: BookmarkViewLabels = DEFAULT_BOOKMARK_VIEW_LABELS): BrowserBookmarkApi {
+  const bookmarkApi = getOptionalBookmarkApi();
+
+  if (!bookmarkApi) {
+    throw new Error(labels.bookmarkAccessUnavailable);
+  }
+
+  return bookmarkApi;
+}
+
+function getOptionalBookmarkApi(): BrowserBookmarkApi | undefined {
   const maybeBrowser = browser as typeof browser | undefined;
   return maybeBrowser?.bookmarks?.getTree ? maybeBrowser.bookmarks : undefined;
 }

@@ -12,12 +12,14 @@ import {
   ExternalLink,
   FlaskConical,
   FolderOpen,
+  FolderPlus,
   Layers3,
   LayoutGrid,
   Lightbulb,
   Menu,
   MoreHorizontal,
   Palette,
+  Pencil,
   Plus,
   RefreshCw,
   Search,
@@ -25,6 +27,7 @@ import {
   ShieldCheck,
   SlidersHorizontal,
   Sparkles,
+  Trash2,
   Users,
   X
 } from "lucide-react";
@@ -43,6 +46,7 @@ export type IconName =
   | "command"
   | "external"
   | "flask"
+  | "folderAdd"
   | "folderOpen"
   | "layers"
   | "layout"
@@ -50,6 +54,7 @@ export type IconName =
   | "menu"
   | "more"
   | "palette"
+  | "pencil"
   | "plus"
   | "refresh"
   | "search"
@@ -57,6 +62,7 @@ export type IconName =
   | "shield"
   | "sliders"
   | "sparkles"
+  | "trash"
   | "users"
   | "x";
 
@@ -73,6 +79,7 @@ const icons: Record<IconName, LucideIcon> = {
   command: Command,
   external: ExternalLink,
   flask: FlaskConical,
+  folderAdd: FolderPlus,
   folderOpen: FolderOpen,
   layers: Layers3,
   layout: LayoutGrid,
@@ -80,6 +87,7 @@ const icons: Record<IconName, LucideIcon> = {
   menu: Menu,
   more: MoreHorizontal,
   palette: Palette,
+  pencil: Pencil,
   plus: Plus,
   refresh: RefreshCw,
   search: Search,
@@ -87,6 +95,7 @@ const icons: Record<IconName, LucideIcon> = {
   shield: ShieldCheck,
   sliders: SlidersHorizontal,
   sparkles: Sparkles,
+  trash: Trash2,
   users: Users,
   x: X
 };
