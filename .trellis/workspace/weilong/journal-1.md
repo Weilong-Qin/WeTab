@@ -108,3 +108,37 @@ Implemented homepage create/edit/delete bookmark management with service-layer n
 ### Next Steps
 
 - None - task complete
+
+
+## Session 4: Manual URL validation
+
+**Date**: 2026-05-25
+**Task**: Manual URL validation
+**Branch**: `master`
+
+### Summary
+
+Implemented manual URL reachability checks for visible bookmarks, persisted validation status in extension storage, merged status into bookmark cards, added host permissions and Vitest coverage. Quality gate passed: test, lint, typecheck, build.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `73fccfe` | (see git log) |
+| `3b3296d` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
