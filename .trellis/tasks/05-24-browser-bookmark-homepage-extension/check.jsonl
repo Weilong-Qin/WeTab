@@ -1,0 +1,8 @@
+{"file":".trellis/spec/frontend/index.md","reason":"Verify implementation follows frontend guideline entry point."}
+{"file":".trellis/spec/frontend/directory-structure.md","reason":"Verify frontend architecture is clear and maintainable."}
+{"file":".trellis/spec/frontend/component-guidelines.md","reason":"Verify components are reusable instead of duplicated page styles."}
+{"file":".trellis/spec/frontend/quality-guidelines.md","reason":"Verify lint/typecheck/test expectations and forbidden patterns."}
+{"file":".trellis/spec/frontend/type-safety.md","reason":"Verify TypeScript boundaries and prop types."}
+{"file":".trellis/spec/guides/code-reuse-thinking-guide.md","reason":"Verify reusable component extraction and extension before creating similar components."}
+{"file":".trellis/tasks/05-24-browser-bookmark-homepage-extension/research/tmp-html-design-system.md","reason":"Verify visual/style fidelity against the extracted tmp.html design system."}
+{"file":".trellis/tasks/05-24-browser-bookmark-homepage-extension/research/extension-scaffold.md","reason":"Verify scaffold follows the chosen WXT + React + TypeScript direction."}

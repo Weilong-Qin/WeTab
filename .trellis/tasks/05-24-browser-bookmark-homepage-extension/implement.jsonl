@@ -1,0 +1,10 @@
+{"file":".trellis/spec/frontend/index.md","reason":"Frontend guideline entry point for the new WXT React app."}
+{"file":".trellis/spec/frontend/directory-structure.md","reason":"Directory conventions need to be established and respected while scaffolding."}
+{"file":".trellis/spec/frontend/component-guidelines.md","reason":"Component reuse and prop/variant conventions are central to the design-system migration."}
+{"file":".trellis/spec/frontend/state-management.md","reason":"Bookmark/search UI state should be kept predictable and local-first for the MVP scaffold."}
+{"file":".trellis/spec/frontend/type-safety.md","reason":"React/TypeScript component and sample data types need clear boundaries."}
+{"file":".trellis/spec/frontend/quality-guidelines.md","reason":"Quality expectations for lint, typecheck, and reusable styling."}
+{"file":".trellis/spec/guides/code-reuse-thinking-guide.md","reason":"The user explicitly requires reusable components and avoiding duplicate page-level styles."}
+{"file":".trellis/tasks/05-24-browser-bookmark-homepage-extension/research/extension-scaffold.md","reason":"WXT + React + TypeScript scaffold decision and trade-offs."}
+{"file":".trellis/tasks/05-24-browser-bookmark-homepage-extension/research/tmp-html-design-system.md","reason":"Extracted source design tokens, components, layout, responsive, and interaction requirements from tmp.html."}
+{"file":".trellis/tasks/05-24-browser-bookmark-homepage-extension/research/browser-extension-platform.md","reason":"Browser extension platform constraints for new-tab and bookmark APIs."}
