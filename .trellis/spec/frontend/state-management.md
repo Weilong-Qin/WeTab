@@ -104,6 +104,74 @@ const view = await loadBookmarkView(messages.bookmarkView);
 applyBookmarkView(view);
 ```
 
+### URL validation metadata
+
+#### 1. Scope / Trigger
+
+This contract applies when the homepage manually checks bookmark URL reachability. URL validation is extension-only metadata; native browser bookmark titles, URLs, folders, and ordering must not be changed by validation.
+
+#### 2. Signatures
+
+URL validation belongs in `src/services/urlValidationService.ts`:
+
+```ts
+loadUrlValidationStatuses(): Promise<UrlValidationStatusMap>
+saveUrlValidationStatuses(statuses): Promise<void>
+applyUrlValidationStatuses(bookmarks, statuses): BookmarkItem[]
+validateBookmarkUrls(targets, options?): Promise<UrlValidationStatusMap>
+validateUrl(url, options?): Promise<BookmarkStatus>
+```
+
+#### 3. Contracts
+
+* Manifest must declare HTTP/HTTPS host permissions before extension pages can `fetch()` arbitrary bookmark URLs.
+* Storage key: `vtab.urlValidationStatus`.
+* Storage value: `Record<bookmarkId, { checkedAt: number; status: "verified" | "offline" | "unchecked" }>`; invalid records are ignored when read.
+* `loadBookmarkView()` must merge persisted validation status into mapped `BookmarkItem.status`.
+* Manual validation checks only the bookmarks in the chosen UI scope. Do not add scheduled/background checks without a new contract.
+* Validation runs conservatively and sequentially for the MVP.
+
+#### 4. Validation & Error Matrix
+
+* Non-HTTP(S) URL -> `offline`.
+* `HEAD` response `200-399` -> `verified`.
+* `HEAD` not allowed or network failure -> retry once with `GET`.
+* `GET` response `200-399` -> `verified`.
+* Other response, fetch failure, or timeout -> `offline`.
+* Storage read failure -> use an empty status map.
+* Storage write failure -> surface a localized UI error and keep bookmark data unchanged.
+
+#### 5. Good / Base / Bad Cases
+
+* Good: user clicks "Check links", the page validates visible bookmarks, persists status by bookmark ID, reloads the mapped bookmark view, and card badges update.
+* Base: a previously stored status is applied on page load before the user checks links again.
+* Bad: validation modifies bookmark titles with status prefixes or writes health state into native bookmark folders.
+
+#### 6. Tests Required
+
+* Unit-test URL validation with mocked `fetch` and `browser.storage.local`.
+* Assert reachable `HEAD` responses are `verified`.
+* Assert `HEAD` rejection falls back to `GET`.
+* Assert failures/timeouts/non-HTTP URLs become `offline`.
+* Assert persisted status loading filters invalid records.
+* Assert batch validation preserves existing records and writes new bookmark statuses by ID.
+
+#### 7. Wrong vs Correct
+
+Wrong:
+
+```ts
+await updateBookmark({ id, title: `[offline] ${title}`, url });
+```
+
+Correct:
+
+```ts
+await validateBookmarkUrls([{ id, url }]);
+const view = await loadBookmarkView(messages.bookmarkView);
+applyBookmarkView(view);
+```
+
 ---
 
 ## When to Use Global State
