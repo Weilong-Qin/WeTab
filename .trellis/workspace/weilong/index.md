@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 7
+- **Total Sessions**: 8
 - **Last Active**: 2026-05-25
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~243 | Active |
+| `journal-1.md` | ~278 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 8 | 2026-05-25 | Bookmark management UI refinements | `3401949`, `0b474b7`, `a2be766` | `master` |
 | 7 | 2026-05-25 | LLM classification suggestions | `f3bf675` | `master` |
 | 6 | 2026-05-25 | Homepage bookmark organization | `afc705d` | `master` |
 | 5 | 2026-05-25 | LLM configuration testing | `8cca0c5` | `master` |

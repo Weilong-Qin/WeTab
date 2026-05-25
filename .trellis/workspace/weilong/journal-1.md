@@ -241,3 +241,38 @@ Implemented opt-in LLM bookmark classification suggestions with scoped request p
 ### Next Steps
 
 - None - task complete
+
+
+## Session 8: Bookmark management UI refinements
+
+**Date**: 2026-05-25
+**Task**: Bookmark management UI refinements
+**Branch**: `master`
+
+### Summary
+
+Implemented native bookmark copy/update/delete helpers, expanded bookmark management interactions with batch selection, context menus, favicon fallback, dismissible feedback, settings tooltip fixes, and moved scheduled link-check targeting into settings with updated frontend state contracts.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `3401949` | (see git log) |
+| `0b474b7` | (see git log) |
+| `a2be766` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
