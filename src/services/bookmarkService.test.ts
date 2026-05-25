@@ -2,12 +2,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createBookmark,
   createFolder,
+  captureBookmarkNodeSnapshots,
   deleteBookmark,
+  deleteFolder,
   filterBookmarks,
   findFolderPath,
+  isDescendantFolder,
   loadBookmarkView,
+  moveBookmarkNode,
+  restoreBookmarkNodeSnapshots,
   resolveWritableParentFolderId,
   updateBookmark,
+  updateFolder,
   subscribeToBookmarkChanges
 } from "./bookmarkService";
 
@@ -15,6 +21,8 @@ interface TestBookmarkNode {
   id: string;
   title: string;
   url?: string;
+  index?: number;
+  parentId?: string;
   children?: TestBookmarkNode[];
 }
 
@@ -42,7 +50,9 @@ const bookmarkApiMock = vi.hoisted(() => {
 
   return {
     create: vi.fn<() => Promise<TestBookmarkNode>>(),
+    getSubTree: vi.fn<(nodeId: string) => Promise<TestBookmarkNode[]>>(),
     getTree: vi.fn<() => Promise<TestBookmarkNode[]>>(),
+    move: vi.fn<() => Promise<TestBookmarkNode>>(),
     onChanged: createEventMock(),
     onChildrenReordered: createEventMock(),
     onCreated: createEventMock(),
@@ -51,6 +61,7 @@ const bookmarkApiMock = vi.hoisted(() => {
     onMoved: createEventMock(),
     onRemoved: createEventMock(),
     remove: vi.fn<() => Promise<void>>(),
+    removeTree: vi.fn<() => Promise<void>>(),
     update: vi.fn<() => Promise<TestBookmarkNode>>()
   };
 });
@@ -76,19 +87,27 @@ const nativeTree: TestBookmarkNode[] = [
     children: [
       {
         id: "1",
+        parentId: "0",
+        index: 0,
         title: "Bookmarks Bar",
         children: [
           {
             id: "2",
+            parentId: "1",
+            index: 0,
             title: "Dev",
             children: [
               {
                 id: "3",
+                parentId: "2",
+                index: 0,
                 title: "OpenAI Platform",
                 url: "https://platform.openai.com/docs"
               },
               {
                 id: "4",
+                parentId: "2",
+                index: 1,
                 title: "TypeScript",
                 url: "https://www.typescriptlang.org/docs/"
               }
@@ -96,10 +115,14 @@ const nativeTree: TestBookmarkNode[] = [
           },
           {
             id: "5",
+            parentId: "1",
+            index: 1,
             title: "News",
             children: [
               {
                 id: "6",
+                parentId: "5",
+                index: 0,
                 title: "Example News",
                 url: "https://news.example.com"
               }
@@ -109,10 +132,14 @@ const nativeTree: TestBookmarkNode[] = [
       },
       {
         id: "7",
+        parentId: "0",
+        index: 1,
         title: "Other Bookmarks",
         children: [
           {
             id: "8",
+            parentId: "7",
+            index: 0,
             title: "Loose Link",
             url: "https://loose.test"
           }
@@ -129,10 +156,23 @@ beforeEach(() => {
     id: "9",
     title: "Created"
   });
+  bookmarkApiMock.getSubTree.mockReset();
+  bookmarkApiMock.getSubTree.mockImplementation((nodeId: string) => {
+    const node = findNativeNode(nativeTree, nodeId);
+    return Promise.resolve(node ? [node] : []);
+  });
   bookmarkApiMock.getTree.mockReset();
   bookmarkApiMock.getTree.mockResolvedValue(nativeTree);
+  bookmarkApiMock.move.mockReset();
+  bookmarkApiMock.move.mockResolvedValue({
+    id: "3",
+    title: "Moved",
+    url: "https://moved.test"
+  });
   bookmarkApiMock.remove.mockReset();
   bookmarkApiMock.remove.mockResolvedValue();
+  bookmarkApiMock.removeTree.mockReset();
+  bookmarkApiMock.removeTree.mockResolvedValue();
   bookmarkApiMock.update.mockReset();
   bookmarkApiMock.update.mockResolvedValue({
     id: "3",
@@ -163,11 +203,15 @@ describe("bookmarkService", () => {
     });
     expect(view.folders[1]?.children?.[0]).toMatchObject({
       id: "2",
+      parentId: "1",
+      index: 0,
       label: "Dev",
       count: 2
     });
     expect(view.bookmarks[0]).toMatchObject({
       id: "3",
+      parentId: "2",
+      index: 0,
       title: "OpenAI Platform",
       domain: "platform.openai.com",
       folderPath: ["Bookmarks Bar", "Dev"],
@@ -246,6 +290,78 @@ describe("bookmarkService", () => {
     expect(bookmarkApiMock.remove).toHaveBeenCalledWith("3");
   });
 
+  it("updates and deletes folders through the native bookmark API", async () => {
+    await updateFolder({
+      id: "2",
+      title: " Updated Folder "
+    });
+    await deleteFolder("2");
+
+    expect(bookmarkApiMock.update).toHaveBeenCalledWith("2", {
+      title: "Updated Folder"
+    });
+    expect(bookmarkApiMock.removeTree).toHaveBeenCalledWith("2");
+  });
+
+  it("moves bookmark nodes through the native bookmark API", async () => {
+    await moveBookmarkNode({
+      id: "3",
+      parentId: "5",
+      index: 1
+    });
+
+    expect(bookmarkApiMock.move).toHaveBeenCalledWith("3", {
+      parentId: "5",
+      index: 1
+    });
+  });
+
+  it("captures and restores bookmark node snapshots for best-effort undo", async () => {
+    bookmarkApiMock.create
+      .mockResolvedValueOnce({ id: "10", title: "Dev" })
+      .mockResolvedValueOnce({
+        id: "11",
+        title: "OpenAI Platform",
+        url: "https://platform.openai.com/docs"
+      })
+      .mockResolvedValueOnce({
+        id: "12",
+        title: "TypeScript",
+        url: "https://www.typescriptlang.org/docs/"
+      });
+
+    const snapshots = await captureBookmarkNodeSnapshots(["2"]);
+    await restoreBookmarkNodeSnapshots(snapshots);
+
+    expect(snapshots[0]).toMatchObject({
+      title: "Dev",
+      parentId: "1",
+      index: 0,
+      children: [
+        { title: "OpenAI Platform", url: "https://platform.openai.com/docs" },
+        { title: "TypeScript", url: "https://www.typescriptlang.org/docs/" }
+      ]
+    });
+    expect(bookmarkApiMock.create).toHaveBeenNthCalledWith(1, {
+      index: 0,
+      parentId: "1",
+      title: "Dev"
+    });
+    expect(bookmarkApiMock.create).toHaveBeenNthCalledWith(2, {
+      index: 0,
+      parentId: "10",
+      title: "OpenAI Platform",
+      url: "https://platform.openai.com/docs"
+    });
+  });
+
+  it("detects nested folder descendants", async () => {
+    const view = await loadBookmarkView(labels);
+
+    expect(isDescendantFolder(view.folders, "1", "2")).toBe(true);
+    expect(isDescendantFolder(view.folders, "2", "1")).toBe(false);
+  });
+
   it("debounces native bookmark events and unsubscribes cleanly", () => {
     vi.useFakeTimers();
     const onChange = vi.fn();
@@ -267,3 +383,19 @@ describe("bookmarkService", () => {
     expect(onChange).toHaveBeenCalledTimes(1);
   });
 });
+
+function findNativeNode(nodes: TestBookmarkNode[], nodeId: string): TestBookmarkNode | undefined {
+  for (const node of nodes) {
+    if (node.id === nodeId) {
+      return node;
+    }
+
+    const child = findNativeNode(node.children ?? [], nodeId);
+
+    if (child) {
+      return child;
+    }
+  }
+
+  return undefined;
+}

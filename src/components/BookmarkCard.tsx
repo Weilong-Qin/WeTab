@@ -1,5 +1,6 @@
 import { Icon } from "./Icon";
 import { Tag } from "./Tag";
+import type { DragEvent, MouseEvent } from "react";
 import type { BookmarkItem } from "../types/bookmarks";
 import { cx } from "../utils/classNames";
 import { Button } from "./Button";
@@ -8,18 +9,60 @@ export interface BookmarkCardActionLabels {
   delete: string;
   edit: string;
   open: string;
+  select?: string;
 }
 
 export interface BookmarkCardProps {
   actionLabels?: BookmarkCardActionLabels;
   bookmark: BookmarkItem;
+  isSelected?: boolean;
   onDelete?: (bookmark: BookmarkItem) => void;
+  onDragStart?: (bookmark: BookmarkItem, event: DragEvent<HTMLElement>) => void;
+  onDropBefore?: (bookmark: BookmarkItem, event: DragEvent<HTMLElement>) => void;
   onEdit?: (bookmark: BookmarkItem) => void;
+  onSelect?: (bookmark: BookmarkItem, event: MouseEvent<HTMLElement>) => void;
+  selectionMode?: boolean;
 }
 
-export function BookmarkCard({ actionLabels, bookmark, onDelete, onEdit }: BookmarkCardProps) {
+export function BookmarkCard({
+  actionLabels,
+  bookmark,
+  isSelected = false,
+  onDelete,
+  onDragStart,
+  onDropBefore,
+  onEdit,
+  onSelect,
+  selectionMode = false
+}: BookmarkCardProps) {
+  function handleCardClick(event: MouseEvent<HTMLElement>) {
+    if (!selectionMode && !event.ctrlKey && !event.metaKey && !event.shiftKey) {
+      return;
+    }
+
+    event.preventDefault();
+    onSelect?.(bookmark, event);
+  }
+
   return (
-    <article className="bookmark-card" title={bookmark.url}>
+    <article
+      className={cx("bookmark-card", isSelected && "bookmark-card--selected")}
+      draggable={Boolean(onDragStart)}
+      onClick={handleCardClick}
+      onDragOver={(event) => {
+        if (onDropBefore) {
+          event.preventDefault();
+        }
+      }}
+      onDragStart={(event) => onDragStart?.(bookmark, event)}
+      onDrop={(event) => onDropBefore?.(bookmark, event)}
+      title={bookmark.url}
+    >
+      {selectionMode ? (
+        <label className="bookmark-card__select">
+          <input aria-label={actionLabels?.select} checked={isSelected} readOnly type="checkbox" />
+        </label>
+      ) : null}
       <a
         aria-label={actionLabels?.open}
         className="bookmark-card__link"

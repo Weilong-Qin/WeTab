@@ -55,7 +55,12 @@ Bookmark writes must go through `src/services/bookmarkService.ts`:
 createBookmark({ parentId, title, url }): Promise<void>
 createFolder({ parentId, title }): Promise<void>
 updateBookmark({ id, title, url }): Promise<void>
+updateFolder({ id, title }): Promise<void>
 deleteBookmark(bookmarkId): Promise<void>
+deleteFolder(folderId): Promise<void>
+moveBookmarkNode({ id, parentId, index? }): Promise<void>
+captureBookmarkNodeSnapshots(nodeIds): Promise<BookmarkNodeSnapshot[]>
+restoreBookmarkNodeSnapshots(snapshots): Promise<void>
 resolveWritableParentFolderId(folders, selectedFolderId): string | undefined
 ```
 
@@ -64,7 +69,11 @@ resolveWritableParentFolderId(folders, selectedFolderId): string | undefined
 * `parentId` is optional; when the synthetic `all` folder is selected, use `resolveWritableParentFolderId()` to choose the first native root folder when available.
 * `title` and `url` are trimmed before calling the browser bookmark API.
 * `createFolder()` creates a native bookmark folder by omitting `url`.
-* `deleteBookmark()` removes only bookmark items. Folder deletion requires a separate explicit contract before implementation.
+* `updateFolder()` renames a native folder by updating only its title.
+* `deleteBookmark()` removes only bookmark items.
+* `deleteFolder()` uses native recursive folder deletion and must only be called after explicit UI confirmation.
+* `moveBookmarkNode()` wraps native bookmark/folder move and reorder. Passing `parentId` moves across folders; passing `index` reorders inside the target parent.
+* Best-effort delete undo must capture native node snapshots before deletion and restore by recreating nodes. Restored nodes may receive new native bookmark IDs.
 * After any successful write, refresh from `loadBookmarkView()` instead of mutating mapped React state in place.
 
 #### 4. Validation & Error Matrix
@@ -74,19 +83,31 @@ resolveWritableParentFolderId(folders, selectedFolderId): string | undefined
 * Invalid URL in the create/edit form -> handled by `type="url"` before service calls.
 * Browser API rejection -> surface a localized editor error and keep the modal open for correction/retry.
 * Deleted bookmark confirmation rejected -> do not call `deleteBookmark()`.
+* Folder delete confirmation rejected -> do not call `deleteFolder()`.
+* Moving a folder into itself or its descendant -> block in UI before calling native move.
+* Delete undo after native delete -> recreate from snapshot; do not promise ID-keyed metadata survives.
 
 #### 5. Good / Base / Bad Cases
 
 * Good: selected folder is a real native folder, UI calls `createBookmark({ parentId: selectedFolderId, ... })`, then reloads the bookmark tree.
 * Base: selected folder is `all`, UI resolves the first native root folder and writes there.
+* Base: moving a bookmark card to a folder calls `moveBookmarkNode({ id, parentId })`, then reloads the bookmark tree.
+* Base: undoing a move calls `moveBookmarkNode()` with the captured previous `parentId` and `index`.
+* Base: undoing a delete recreates the captured bookmark/folder tree with `browser.bookmarks.create()`.
 * Bad: UI pushes a new `BookmarkItem` directly into React state without a native browser API write.
+* Bad: deleting a folder through repeated child deletes when native recursive deletion is the intended operation.
+* Bad: promising restored bookmark IDs after delete undo.
 
 #### 6. Tests Required
 
 * Unit-test service calls with mocked `wxt/browser`.
 * Assert `createBookmark()` and `createFolder()` call `browser.bookmarks.create()` with trimmed fields.
 * Assert `updateBookmark()` calls `browser.bookmarks.update()` with trimmed fields.
+* Assert `updateFolder()` calls `browser.bookmarks.update()` with a trimmed title only.
 * Assert `deleteBookmark()` calls `browser.bookmarks.remove()`.
+* Assert `deleteFolder()` calls `browser.bookmarks.removeTree()`.
+* Assert `moveBookmarkNode()` calls `browser.bookmarks.move()` with target parent/index.
+* Assert snapshot capture/restoration uses `getSubTree()` and recreates nested children.
 * Assert `resolveWritableParentFolderId()` handles real folder, `all`, and missing selected folder cases.
 
 #### 7. Wrong vs Correct
@@ -101,6 +122,20 @@ Correct:
 
 ```ts
 await createBookmark({ parentId, title, url });
+const view = await loadBookmarkView(messages.bookmarkView);
+applyBookmarkView(view);
+```
+
+Wrong:
+
+```ts
+setFolders((items) => reorderLocally(items));
+```
+
+Correct:
+
+```ts
+await moveBookmarkNode({ id, parentId, index });
 const view = await loadBookmarkView(messages.bookmarkView);
 applyBookmarkView(view);
 ```

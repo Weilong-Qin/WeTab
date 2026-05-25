@@ -34,10 +34,32 @@ export interface AppMessages {
     searchPlaceholder: string;
     searchAriaLabel: string;
     deleteBookmarkConfirm: (title: string) => string;
+    deleteFolderConfirm: (title: string) => string;
+    deleteSelectedConfirm: (count: number) => string;
     bookmarkActions: {
       delete: string;
       edit: string;
       open: string;
+      select: string;
+    };
+    folderActions: {
+      delete: string;
+      edit: string;
+      select: string;
+    };
+    selection: {
+      chooseFolder: string;
+      clear: string;
+      delete: string;
+      done: string;
+      moveTo: string;
+      select: string;
+      selectedCount: (count: number) => string;
+    };
+    undo: {
+      action: string;
+      deleteComplete: (count: number) => string;
+      moveComplete: (count: number) => string;
     };
     urlValidation: {
       check: string;
@@ -66,6 +88,15 @@ export interface AppMessages {
         urlLabel: string;
       };
       editBookmark: {
+        cancel: string;
+        close: string;
+        folderName: string;
+        save: string;
+        title: string;
+        titleLabel: string;
+        urlLabel: string;
+      };
+      editFolder: {
         cancel: string;
         close: string;
         folderName: string;
@@ -165,10 +196,34 @@ export const messages: Record<LanguageCode, AppMessages> = {
       searchPlaceholder: "Search bookmark titles, domains, or folder paths...",
       searchAriaLabel: "Search bookmarks",
       deleteBookmarkConfirm: (title) => `Delete "${title}" from browser bookmarks?`,
+      deleteFolderConfirm: (title) =>
+        `Delete folder "${title}" and all bookmarks and folders inside it? This writes to browser bookmarks.`,
+      deleteSelectedConfirm: (count) =>
+        `Delete ${count} selected item${count === 1 ? "" : "s"} from browser bookmarks?`,
       bookmarkActions: {
         delete: "Delete bookmark",
         edit: "Edit bookmark",
-        open: "Open bookmark"
+        open: "Open bookmark",
+        select: "Select bookmark"
+      },
+      folderActions: {
+        delete: "Delete folder",
+        edit: "Rename folder",
+        select: "Select folder"
+      },
+      selection: {
+        chooseFolder: "Choose folder",
+        clear: "Clear",
+        delete: "Delete selected",
+        done: "Done",
+        moveTo: "Move to...",
+        select: "Select",
+        selectedCount: (count) => `${count} selected`
+      },
+      undo: {
+        action: "Undo",
+        deleteComplete: (count) => `Deleted ${count} item${count === 1 ? "" : "s"}.`,
+        moveComplete: (count) => `Moved ${count} item${count === 1 ? "" : "s"}.`
       },
       urlValidation: {
         check: "Check links",
@@ -202,6 +257,15 @@ export const messages: Record<LanguageCode, AppMessages> = {
           folderName: "Folder name",
           save: "Save changes",
           title: "Edit bookmark",
+          titleLabel: "Bookmark title",
+          urlLabel: "URL"
+        },
+        editFolder: {
+          cancel: "Cancel",
+          close: "Close folder editor",
+          folderName: "Folder name",
+          save: "Save changes",
+          title: "Rename folder",
           titleLabel: "Bookmark title",
           urlLabel: "URL"
         }
@@ -288,10 +352,32 @@ export const messages: Record<LanguageCode, AppMessages> = {
       searchPlaceholder: "搜索书签标题、域名或文件夹路径...",
       searchAriaLabel: "搜索书签",
       deleteBookmarkConfirm: (title) => `要从浏览器书签中删除“${title}”吗？`,
+      deleteFolderConfirm: (title) => `要删除文件夹“${title}”以及其中所有书签和子文件夹吗？此操作会写入浏览器书签。`,
+      deleteSelectedConfirm: (count) => `要从浏览器书签中删除已选的 ${count} 个项目吗？`,
       bookmarkActions: {
         delete: "删除书签",
         edit: "编辑书签",
-        open: "打开书签"
+        open: "打开书签",
+        select: "选择书签"
+      },
+      folderActions: {
+        delete: "删除文件夹",
+        edit: "重命名文件夹",
+        select: "选择文件夹"
+      },
+      selection: {
+        chooseFolder: "选择文件夹",
+        clear: "清除",
+        delete: "删除已选",
+        done: "完成",
+        moveTo: "移动到...",
+        select: "选择",
+        selectedCount: (count) => `已选择 ${count} 个`
+      },
+      undo: {
+        action: "撤销",
+        deleteComplete: (count) => `已删除 ${count} 个项目。`,
+        moveComplete: (count) => `已移动 ${count} 个项目。`
       },
       urlValidation: {
         check: "检查链接",
@@ -325,6 +411,15 @@ export const messages: Record<LanguageCode, AppMessages> = {
           folderName: "文件夹名称",
           save: "保存更改",
           title: "编辑书签",
+          titleLabel: "书签标题",
+          urlLabel: "URL"
+        },
+        editFolder: {
+          cancel: "取消",
+          close: "关闭文件夹编辑器",
+          folderName: "文件夹名称",
+          save: "保存更改",
+          title: "重命名文件夹",
           titleLabel: "书签标题",
           urlLabel: "URL"
         }

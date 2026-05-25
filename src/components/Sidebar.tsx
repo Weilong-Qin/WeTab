@@ -1,6 +1,6 @@
 import { Button } from "./Button";
 import { Icon } from "./Icon";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type DragEvent, type MouseEvent } from "react";
 import type { FolderItem } from "../types/bookmarks";
 import { cx } from "../utils/classNames";
 
@@ -11,13 +11,26 @@ export interface SidebarProps {
   brandTitle?: string;
   brandSubtitle?: string;
   actionLabel?: string;
+  actionLabels?: {
+    delete: string;
+    edit: string;
+    select: string;
+  };
   collapseFolderLabel?: (label: string) => string;
   expandFolderLabel?: (label: string) => string;
   folderSectionLabel?: string;
   navLabel?: string;
+  onDeleteFolder?: (folder: FolderItem) => void;
+  onDragFolderStart?: (folder: FolderItem, event: DragEvent<HTMLElement>) => void;
+  onDropBeforeFolder?: (folder: FolderItem, event: DragEvent<HTMLElement>) => void;
+  onDropOnFolder?: (folder: FolderItem, event: DragEvent<HTMLElement>) => void;
+  onEditFolder?: (folder: FolderItem) => void;
   statusLabel?: string;
+  onSelectFolderItem?: (folder: FolderItem, event: MouseEvent<HTMLElement>) => void;
   profileTitle?: string;
   profileSubtitle?: string;
+  selectedItemKeys?: Set<string>;
+  selectionMode?: boolean;
 }
 
 export function Sidebar({
@@ -27,13 +40,22 @@ export function Sidebar({
   brandTitle = "Digital Air",
   brandSubtitle = "Workspace",
   actionLabel = "AI Organize",
+  actionLabels,
   collapseFolderLabel = (label) => `Collapse ${label}`,
   expandFolderLabel = (label) => `Expand ${label}`,
   folderSectionLabel = "Folders",
   navLabel = "Bookmark folders",
+  onDeleteFolder,
+  onDragFolderStart,
+  onDropBeforeFolder,
+  onDropOnFolder,
+  onEditFolder,
+  onSelectFolderItem,
   statusLabel = "Sync Status: Live",
   profileTitle = "Personal Library",
-  profileSubtitle = "Digital Air Space"
+  profileSubtitle = "Digital Air Space",
+  selectedItemKeys = new Set(),
+  selectionMode = false
 }: SidebarProps) {
   const [expandedFolderIds, setExpandedFolderIds] = useState<Set<string>>(() => new Set());
   const initializedExpansionRef = useRef(false);
@@ -88,9 +110,19 @@ export function Sidebar({
             expandFolderLabel={expandFolderLabel}
             isExpanded={expandedFolderIds.has(rootFolder.id)}
             isActive={selectedFolderId === rootFolder.id}
+            isSelected={selectedItemKeys.has(`folder:${rootFolder.id}`)}
+            selectedItemKeys={selectedItemKeys}
+            actionLabels={actionLabels}
+            onDeleteFolder={onDeleteFolder}
+            onDragFolderStart={onDragFolderStart}
+            onDropBeforeFolder={onDropBeforeFolder}
+            onDropOnFolder={onDropOnFolder}
+            onEditFolder={onEditFolder}
             onSelect={onSelectFolder}
+            onSelectFolderItem={onSelectFolderItem}
             onToggle={toggleFolder}
             selectedFolderId={selectedFolderId}
+            selectionMode={selectionMode}
           />
         ) : null}
 
@@ -104,10 +136,20 @@ export function Sidebar({
               expandFolderLabel={expandFolderLabel}
               isExpanded={expandedFolderIds.has(folder.id)}
               isActive={selectedFolderId === folder.id}
+              isSelected={selectedItemKeys.has(`folder:${folder.id}`)}
+              selectedItemKeys={selectedItemKeys}
+              actionLabels={actionLabels}
               key={folder.id}
+              onDeleteFolder={onDeleteFolder}
+              onDragFolderStart={onDragFolderStart}
+              onDropBeforeFolder={onDropBeforeFolder}
+              onDropOnFolder={onDropOnFolder}
+              onEditFolder={onEditFolder}
               onSelect={onSelectFolder}
+              onSelectFolderItem={onSelectFolderItem}
               onToggle={toggleFolder}
               selectedFolderId={selectedFolderId}
+              selectionMode={selectionMode}
             />
           ))}
         </div>
@@ -139,9 +181,23 @@ interface SidebarItemProps {
   expandFolderLabel: (label: string) => string;
   isExpanded: boolean;
   isActive: boolean;
+  isSelected: boolean;
+  selectedItemKeys: Set<string>;
+  actionLabels?: {
+    delete: string;
+    edit: string;
+    select: string;
+  };
+  onDeleteFolder?: (folder: FolderItem) => void;
+  onDragFolderStart?: (folder: FolderItem, event: DragEvent<HTMLElement>) => void;
+  onDropBeforeFolder?: (folder: FolderItem, event: DragEvent<HTMLElement>) => void;
+  onDropOnFolder?: (folder: FolderItem, event: DragEvent<HTMLElement>) => void;
+  onEditFolder?: (folder: FolderItem) => void;
   onSelect: (id: string) => void;
+  onSelectFolderItem?: (folder: FolderItem, event: MouseEvent<HTMLElement>) => void;
   onToggle: (id: string) => void;
   selectedFolderId: string;
+  selectionMode: boolean;
 }
 
 function SidebarItem({
@@ -151,15 +207,63 @@ function SidebarItem({
   expandFolderLabel,
   isExpanded,
   isActive,
+  isSelected,
+  selectedItemKeys,
+  actionLabels,
+  onDeleteFolder,
+  onDragFolderStart,
+  onDropBeforeFolder,
+  onDropOnFolder,
+  onEditFolder,
   onSelect,
+  onSelectFolderItem,
   onToggle,
-  selectedFolderId
+  selectedFolderId,
+  selectionMode
 }: SidebarItemProps) {
   const hasChildren = Boolean(folder.children?.length);
+  const isSyntheticRoot = folder.id === "all";
+
+  function handleSelectClick(event: MouseEvent<HTMLElement>) {
+    if (!selectionMode && !event.ctrlKey && !event.metaKey && !event.shiftKey) {
+      if (hasChildren && !isExpanded) {
+        onToggle(folder.id);
+      }
+
+      onSelect(folder.id);
+      return;
+    }
+
+    event.preventDefault();
+    onSelectFolderItem?.(folder, event);
+  }
 
   return (
     <div className="sidebar-item-wrap">
-      <div className={cx("sidebar-item", isActive && "sidebar-item--active")}>
+      <div
+        className={cx("sidebar-item", isActive && "sidebar-item--active", isSelected && "sidebar-item--selected")}
+        draggable={!isSyntheticRoot && Boolean(onDragFolderStart)}
+        onDragOver={(event) => {
+          if (!isSyntheticRoot && (onDropBeforeFolder || onDropOnFolder)) {
+            event.preventDefault();
+          }
+        }}
+        onDragStart={(event) => {
+          if (!isSyntheticRoot) {
+            onDragFolderStart?.(folder, event);
+          }
+        }}
+        onDrop={(event) => {
+          if (!isSyntheticRoot) {
+            onDropOnFolder?.(folder, event);
+          }
+        }}
+      >
+        {selectionMode && !isSyntheticRoot ? (
+          <label className="sidebar-item__checkbox">
+            <input aria-label={actionLabels?.select} checked={isSelected} readOnly type="checkbox" />
+          </label>
+        ) : null}
         {hasChildren ? (
           <button
             aria-expanded={isExpanded}
@@ -182,19 +286,42 @@ function SidebarItem({
         <button
           aria-current={isActive ? "page" : undefined}
           className="sidebar-item__select"
-          onClick={() => {
-            if (hasChildren && !isExpanded) {
-              onToggle(folder.id);
-            }
-
-            onSelect(folder.id);
-          }}
+          onClick={handleSelectClick}
           type="button"
         >
           <Icon name={folder.icon} size={19} />
           <span>{folder.label}</span>
         </button>
         <span className="sidebar-item__count">{folder.count}</span>
+        {!isSyntheticRoot && (onEditFolder || onDeleteFolder) ? (
+          <span className="sidebar-item__actions">
+            {onDropBeforeFolder ? (
+              <span
+                className="sidebar-item__drop-before"
+                onDragOver={(event) => event.preventDefault()}
+                onDrop={(event) => onDropBeforeFolder(folder, event)}
+              />
+            ) : null}
+            {onEditFolder ? (
+              <Button
+                aria-label={actionLabels?.edit}
+                icon="pencil"
+                onClick={() => onEditFolder(folder)}
+                title={actionLabels?.edit}
+                variant="icon"
+              />
+            ) : null}
+            {onDeleteFolder ? (
+              <Button
+                aria-label={actionLabels?.delete}
+                icon="trash"
+                onClick={() => onDeleteFolder(folder)}
+                title={actionLabels?.delete}
+                variant="icon"
+              />
+            ) : null}
+          </span>
+        ) : null}
       </div>
       {isExpanded && folder.children?.length ? (
         <div className="sidebar-sublist">
@@ -206,10 +333,20 @@ function SidebarItem({
               expandFolderLabel={expandFolderLabel}
               isExpanded={expandedFolderIds.has(child.id)}
               isActive={selectedFolderId === child.id}
+              isSelected={selectedItemKeys.has(`folder:${child.id}`)}
+              selectedItemKeys={selectedItemKeys}
+              actionLabels={actionLabels}
               key={child.id}
+              onDeleteFolder={onDeleteFolder}
+              onDragFolderStart={onDragFolderStart}
+              onDropBeforeFolder={onDropBeforeFolder}
+              onDropOnFolder={onDropOnFolder}
+              onEditFolder={onEditFolder}
               onSelect={onSelect}
+              onSelectFolderItem={onSelectFolderItem}
               onToggle={onToggle}
               selectedFolderId={selectedFolderId}
+              selectionMode={selectionMode}
             />
           ))}
         </div>

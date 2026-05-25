@@ -34,6 +34,25 @@ export interface UpdateBookmarkInput {
   url: string;
 }
 
+export interface UpdateFolderInput {
+  id: string;
+  title: string;
+}
+
+export interface MoveBookmarkNodeInput {
+  id: string;
+  parentId?: string;
+  index?: number;
+}
+
+export interface BookmarkNodeSnapshot {
+  children?: BookmarkNodeSnapshot[];
+  index?: number;
+  parentId?: string;
+  title: string;
+  url?: string;
+}
+
 const DEFAULT_BOOKMARK_VIEW_LABELS: BookmarkViewLabels = {
   allBookmarksLabel: "All Bookmarks",
   bookmarkAccessUnavailable:
@@ -141,9 +160,50 @@ export async function updateBookmark(input: UpdateBookmarkInput): Promise<void> 
   });
 }
 
+export async function updateFolder(input: UpdateFolderInput): Promise<void> {
+  const bookmarkApi = getBookmarkApi();
+  await bookmarkApi.update(input.id, {
+    title: input.title.trim()
+  });
+}
+
 export async function deleteBookmark(bookmarkId: string): Promise<void> {
   const bookmarkApi = getBookmarkApi();
   await bookmarkApi.remove(bookmarkId);
+}
+
+export async function deleteFolder(folderId: string): Promise<void> {
+  const bookmarkApi = getBookmarkApi();
+  await bookmarkApi.removeTree(folderId);
+}
+
+export async function moveBookmarkNode(input: MoveBookmarkNodeInput): Promise<void> {
+  const bookmarkApi = getBookmarkApi();
+  await bookmarkApi.move(input.id, {
+    parentId: input.parentId,
+    index: input.index
+  });
+}
+
+export async function captureBookmarkNodeSnapshots(nodeIds: string[]): Promise<BookmarkNodeSnapshot[]> {
+  const bookmarkApi = getBookmarkApi();
+  const snapshots: BookmarkNodeSnapshot[] = [];
+
+  for (const nodeId of nodeIds) {
+    const [node] = await bookmarkApi.getSubTree(nodeId);
+
+    if (node) {
+      snapshots.push(snapshotBookmarkNode(node));
+    }
+  }
+
+  return snapshots;
+}
+
+export async function restoreBookmarkNodeSnapshots(snapshots: BookmarkNodeSnapshot[]): Promise<void> {
+  for (const snapshot of snapshots) {
+    await restoreBookmarkNodeSnapshot(snapshot);
+  }
 }
 
 export function filterBookmarks(
@@ -205,6 +265,27 @@ export function findFolderPath(folders: FolderItem[], folderId: string): Array<{
   }
 
   return rootFolder ? [{ id: rootFolder.id, label: rootFolder.label }] : [];
+}
+
+export function findFolderById(folders: FolderItem[], folderId: string): FolderItem | undefined {
+  for (const folder of folders) {
+    if (folder.id === folderId) {
+      return folder;
+    }
+
+    const child = findFolderById(folder.children ?? [], folderId);
+
+    if (child) {
+      return child;
+    }
+  }
+
+  return undefined;
+}
+
+export function isDescendantFolder(folders: FolderItem[], sourceFolderId: string, targetFolderId: string): boolean {
+  const sourceFolder = findFolderById(folders, sourceFolderId);
+  return sourceFolder ? hasFolder(sourceFolder.children ?? [], targetFolderId) : false;
 }
 
 function findFolderPathWithoutSyntheticRoot(
@@ -270,6 +351,8 @@ function mapFolderNode(
 
   return {
     id: node.id,
+    parentId: node.parentId,
+    index: node.index,
     label: title,
     count: countDescendantBookmarks(node),
     icon: folderIconForTitle(title),
@@ -291,6 +374,8 @@ function mapBookmarkNode(
 
   return {
     id: node.id,
+    parentId: node.parentId,
+    index: node.index,
     title,
     url,
     domain,
@@ -303,6 +388,38 @@ function mapBookmarkNode(
     status: "unchecked",
     accent: accentForValue(node.id)
   };
+}
+
+function snapshotBookmarkNode(node: BrowserBookmarkNode): BookmarkNodeSnapshot {
+  return {
+    children: node.children?.map(snapshotBookmarkNode),
+    index: node.index,
+    parentId: node.parentId,
+    title: node.title,
+    url: node.url
+  };
+}
+
+async function restoreBookmarkNodeSnapshot(snapshot: BookmarkNodeSnapshot): Promise<void> {
+  const bookmarkApi = getBookmarkApi();
+  const createDetails: Browser.bookmarks.CreateDetails = {
+    index: snapshot.index,
+    parentId: snapshot.parentId,
+    title: snapshot.title
+  };
+
+  if (snapshot.url) {
+    createDetails.url = snapshot.url;
+  }
+
+  const createdNode = await bookmarkApi.create(createDetails);
+
+  for (const child of snapshot.children ?? []) {
+    await restoreBookmarkNodeSnapshot({
+      ...child,
+      parentId: createdNode.id
+    });
+  }
 }
 
 function countDescendantBookmarks(node: BrowserBookmarkNode): number {

@@ -5,6 +5,8 @@ export type TagTone = "blue" | "red" | "neutral";
 
 export interface BookmarkItem {
   id: string;
+  parentId?: string;
+  index?: number;
   title: string;
   url: string;
   domain: string;
@@ -20,6 +22,8 @@ export interface BookmarkItem {
 
 export interface FolderItem {
   id: string;
+  parentId?: string;
+  index?: number;
   label: string;
   count: number;
   icon: IconName;
