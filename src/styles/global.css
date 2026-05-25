@@ -777,29 +777,11 @@ kbd {
   background: var(--color-surface-container-high);
 }
 
-.bookmark-card__body {
-  min-width: 0;
-  flex: 1;
-}
-
-.bookmark-card h3 {
-  margin: 0;
-  overflow: hidden;
-  font-size: var(--type-body-md-size);
-  font-weight: 600;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.bookmark-card__heading {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
 .bookmark-card__footer {
   display: none; /* Hide footer in high-density view */
 }
+
+.bookmark-card__icon-tile.accent-green {
   color: #08734b;
 }
 
@@ -811,39 +793,29 @@ kbd {
   flex: 1;
 }
 
-.bookmark-card__heading {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 6px;
-}
-
 .bookmark-card h3 {
   margin: 0;
+  overflow: hidden;
   font-size: var(--type-label-md-size);
   font-weight: 700;
   letter-spacing: var(--type-label-md-spacing);
   line-height: var(--type-label-md-line);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.bookmark-card p {
-  display: -webkit-box;
-  margin: 0;
-  overflow: hidden;
-  color: var(--color-on-surface-variant);
-  font-size: 12px;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+.bookmark-card__heading {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .verified-icon {
   color: var(--color-secondary);
-  fill: rgba(0, 88, 188, 0.13);
 }
 
 .offline-icon {
   color: var(--color-error);
-  fill: rgba(186, 26, 26, 0.12);
 }
 
 .validation-feedback {
