@@ -32,6 +32,8 @@ export interface SidebarProps {
   profileSubtitle?: string;
   selectedItemKeys?: Set<string>;
   selectionMode?: boolean;
+  onOpenSettings?: () => void;
+  settingsLabel?: string;
 }
 
 export function Sidebar({
@@ -57,7 +59,9 @@ export function Sidebar({
   profileTitle = "Personal Library",
   profileSubtitle = "Digital Air Space",
   selectedItemKeys = new Set(),
-  selectionMode = false
+  selectionMode = false,
+  onOpenSettings,
+  settingsLabel = "Open settings"
 }: SidebarProps) {
   const [expandedFolderIds, setExpandedFolderIds] = useState<Set<string>>(() => new Set());
   const initializedExpansionRef = useRef(false);
@@ -163,13 +167,17 @@ export function Sidebar({
           <span>{statusLabel}</span>
           <Icon name="refresh" size={16} />
         </div>
-        <div className="sidebar__profile">
-          <div className="sidebar__avatar">PL</div>
-          <div>
-            <strong>{profileTitle}</strong>
-            <span>{profileSubtitle}</span>
+        <div className="sidebar__footer-row">
+          <div className="sidebar__profile">
+            <div className="sidebar__avatar">PL</div>
+            <div>
+              <strong>{profileTitle}</strong>
+              <span>{profileSubtitle}</span>
+            </div>
           </div>
-          <Icon name="settings" size={18} />
+          {onOpenSettings ? (
+            <Button aria-label={settingsLabel} icon="settings" onClick={onOpenSettings} variant="icon" />
+          ) : null}
         </div>
       </footer>
     </div>

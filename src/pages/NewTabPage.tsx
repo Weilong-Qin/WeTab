@@ -9,6 +9,9 @@ import { Sidebar } from "../components/Sidebar";
 import { Tag } from "../components/Tag";
 import { TopSearch } from "../components/TopSearch";
 import { useI18n } from "../hooks/useI18n";
+import { SettingsModal } from "../components/SettingsModal";
+import { useThemePreference } from "../hooks/useThemePreference";
+import { useUrlValidationSchedule } from "../hooks/useUrlValidationSchedule";
 import {
   createBookmark,
   createFolder,
@@ -39,6 +42,7 @@ import {
   type LlmClassificationSuggestion
 } from "../services/llmSuggestionService";
 import { validateBookmarkUrls } from "../services/urlValidationService";
+import { runScheduledUrlValidation } from "../services/urlValidationScheduleService";
 import type { BookmarkItem, FolderItem } from "../types/bookmarks";
 
 type EditorIntent = "create-bookmark" | "create-folder" | "edit-bookmark" | "edit-folder";
@@ -77,6 +81,11 @@ const EMPTY_EDITOR_VALUES: BookmarkEditorValues = {
 
 export function NewTabPage() {
   const { messages } = useI18n();
+  useThemePreference();
+  const {
+    isUrlValidationScheduleLoading,
+    urlValidationSchedule
+  } = useUrlValidationSchedule();
   const [folders, setFolders] = useState<FolderItem[]>([]);
   const [bookmarks, setBookmarks] = useState<BookmarkItem[]>([]);
   const [selectedFolderId, setSelectedFolderId] = useState("all");
@@ -98,6 +107,7 @@ export function NewTabPage() {
   const [isRequestingSuggestions, setIsRequestingSuggestions] = useState(false);
   const [suggestionBatch, setSuggestionBatch] = useState<LlmSuggestionBatch | null>(null);
   const [suggestionMessage, setSuggestionMessage] = useState<string | null>(null);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   const applyBookmarkView = useCallback((view: Awaited<ReturnType<typeof loadBookmarkView>>) => {
     setFolders(view.folders);
@@ -185,6 +195,10 @@ export function NewTabPage() {
     () => bookmarks.filter((bookmark) => selectedItemKeys.has(`bookmark:${bookmark.id}`)),
     [bookmarks, selectedItemKeys]
   );
+  const selectedBookmarkIds = useMemo(
+    () => selectedBookmarks.map((bookmark) => bookmark.id),
+    [selectedBookmarks]
+  );
   const classificationBookmarks = selectedBookmarks.length ? selectedBookmarks : visibleBookmarks;
   const pendingSuggestions = suggestionBatch?.suggestions.filter((suggestion) => suggestion.status === "pending") ?? [];
   const editorLabels = useMemo(() => {
@@ -202,6 +216,37 @@ export function NewTabPage() {
 
     return messages.newTab.editor.createBookmark;
   }, [editorState?.intent, messages.newTab.editor]);
+
+  useEffect(() => {
+    if (!urlValidationSchedule.enabled || isUrlValidationScheduleLoading) {
+      return;
+    }
+
+    let isMounted = true;
+
+    async function runValidation() {
+      try {
+        await runScheduledUrlValidation(bookmarks, selectedBookmarkIds, urlValidationSchedule);
+
+        if (isMounted) {
+          await refreshBookmarks();
+        }
+      } catch {
+        return;
+      }
+    }
+
+    void runValidation();
+
+    const intervalId = globalThis.setInterval(() => {
+      void runValidation();
+    }, urlValidationSchedule.intervalMinutes * 60_000);
+
+    return () => {
+      isMounted = false;
+      globalThis.clearInterval(intervalId);
+    };
+  }, [bookmarks, isUrlValidationScheduleLoading, refreshBookmarks, selectedBookmarkIds, urlValidationSchedule]);
 
   function openCreateBookmark() {
     setEditorState({ intent: "create-bookmark" });
@@ -639,6 +684,8 @@ export function NewTabPage() {
           selectedItemKeys={selectedItemKeys}
           selectedFolderId={selectedFolderId}
           selectionMode={isSelectionMode}
+          onOpenSettings={() => setIsSettingsOpen(true)}
+          settingsLabel={messages.settings.openButton}
           statusLabel={
             errorMessage
               ? messages.newTab.sidebar.statusAccessNeeded
@@ -833,6 +880,9 @@ export function NewTabPage() {
           onSubmit={handleEditorSubmit}
           values={editorValues}
         />
+      ) : null}
+      {isSettingsOpen ? (
+        <SettingsModal onClose={() => setIsSettingsOpen(false)} selectedBookmarkCount={selectedBookmarks.length} />
       ) : null}
     </AppShell>
   );

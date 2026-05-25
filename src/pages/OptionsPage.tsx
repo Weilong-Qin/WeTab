@@ -3,6 +3,7 @@ import { Button } from "../components/Button";
 import { GlassPanel } from "../components/GlassPanel";
 import { Tag } from "../components/Tag";
 import { useI18n } from "../hooks/useI18n";
+import { useThemePreference } from "../hooks/useThemePreference";
 import {
   DEFAULT_LLM_CONFIG,
   loadLlmConfig,
@@ -17,6 +18,7 @@ type TestStatus = "idle" | "testing" | "success" | "error";
 
 export function OptionsPage() {
   const { isLanguageLoading, language, languageOptions, messages, setLanguage } = useI18n();
+  useThemePreference();
   const [isLlmConfigLoading, setIsLlmConfigLoading] = useState(true);
   const [llmConfig, setLlmConfig] = useState<LlmConfig>(DEFAULT_LLM_CONFIG);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
