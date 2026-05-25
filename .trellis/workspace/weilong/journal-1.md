@@ -175,3 +175,36 @@ Implemented OpenAI-compatible LLM provider settings persistence, explicit connec
 ### Next Steps
 
 - None - task complete
+
+
+## Session 6: Homepage bookmark organization
+
+**Date**: 2026-05-25
+**Task**: Homepage bookmark organization
+**Branch**: `master`
+
+### Summary
+
+Implemented desktop drag-and-drop bookmark and folder organization, folder rename/delete, bulk selection and move/delete, best-effort undo, service contracts, tests, localization, and frontend state-management spec updates.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `afc705d` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
