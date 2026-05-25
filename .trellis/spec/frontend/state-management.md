@@ -57,6 +57,7 @@ Bookmark writes must go through `src/services/bookmarkService.ts`:
 ```ts
 createBookmark({ parentId, title, url }): Promise<void>
 createFolder({ parentId, title }): Promise<void>
+copyBookmarkNode({ id, parentId, index? }): Promise<BrowserBookmarkNode | undefined>
 updateBookmark({ id, title, url }): Promise<void>
 updateFolder({ id, title }): Promise<void>
 deleteBookmark(bookmarkId): Promise<void>
@@ -72,6 +73,7 @@ resolveWritableParentFolderId(folders, selectedFolderId): string | undefined
 * `parentId` is optional; when the synthetic `all` folder is selected, use `resolveWritableParentFolderId()` to choose the first native root folder when available.
 * `title` and `url` are trimmed before calling the browser bookmark API.
 * `createFolder()` creates a native bookmark folder by omitting `url`.
+* `copyBookmarkNode()` captures the source node with native `getSubTree()` and recreates the bookmark or folder tree with native `create()` under the requested parent/index. It returns the new top-level native node, or `undefined` if the source node no longer exists.
 * `updateFolder()` renames a native folder by updating only its title.
 * `deleteBookmark()` removes only bookmark items.
 * `deleteFolder()` uses native recursive folder deletion and must only be called after explicit UI confirmation.
@@ -85,6 +87,7 @@ resolveWritableParentFolderId(folders, selectedFolderId): string | undefined
 * Empty form fields -> handled by required form inputs before service calls.
 * Invalid URL in the create/edit form -> handled by `type="url"` before service calls.
 * Browser API rejection -> surface a localized editor error and keep the modal open for correction/retry.
+* Copy source node missing after selection -> service returns `undefined`; caller should skip that item and refresh from `loadBookmarkView()` after the batch.
 * Deleted bookmark confirmation rejected -> do not call `deleteBookmark()`.
 * Folder delete confirmation rejected -> do not call `deleteFolder()`.
 * Moving a folder into itself or its descendant -> block in UI before calling native move.
@@ -95,7 +98,9 @@ resolveWritableParentFolderId(folders, selectedFolderId): string | undefined
 * Good: selected folder is a real native folder, UI calls `createBookmark({ parentId: selectedFolderId, ... })`, then reloads the bookmark tree.
 * Base: selected folder is `all`, UI resolves the first native root folder and writes there.
 * Base: moving a bookmark card to a folder calls `moveBookmarkNode({ id, parentId })`, then reloads the bookmark tree.
+* Base: copying selected bookmarks/folders to a folder calls `copyBookmarkNode({ id, parentId })` per pruned top-level item, then reloads the bookmark tree.
 * Base: undoing a move calls `moveBookmarkNode()` with the captured previous `parentId` and `index`.
+* Base: undoing a copy deletes the copied top-level native nodes; copied folders are removed with `removeTree()`.
 * Base: undoing a delete recreates the captured bookmark/folder tree with `browser.bookmarks.create()`.
 * Bad: UI pushes a new `BookmarkItem` directly into React state without a native browser API write.
 * Bad: deleting a folder through repeated child deletes when native recursive deletion is the intended operation.
@@ -110,6 +115,7 @@ resolveWritableParentFolderId(folders, selectedFolderId): string | undefined
 * Assert `deleteBookmark()` calls `browser.bookmarks.remove()`.
 * Assert `deleteFolder()` calls `browser.bookmarks.removeTree()`.
 * Assert `moveBookmarkNode()` calls `browser.bookmarks.move()` with target parent/index.
+* Assert `copyBookmarkNode()` calls `getSubTree()` and recreates bookmark/folder trees with `browser.bookmarks.create()` under the target parent.
 * Assert snapshot capture/restoration uses `getSubTree()` and recreates nested children.
 * Assert `resolveWritableParentFolderId()` handles real folder, `all`, and missing selected folder cases.
 
@@ -222,42 +228,44 @@ This contract applies when the new-tab page automatically rechecks bookmark URLs
 Scheduled validation belongs in `src/services/urlValidationScheduleService.ts`:
 
 ```ts
-type UrlValidationScheduleScope = "selected" | "all"
+type UrlValidationScheduleScope = "all" | "folder"
 
 interface UrlValidationScheduleConfig {
   enabled: boolean;
   intervalMinutes: 15 | 60 | 360 | 1440;
   scope: UrlValidationScheduleScope;
+  targetFolderId?: string;
 }
 
 normalizeUrlValidationScheduleConfig(value): UrlValidationScheduleConfig
 loadUrlValidationScheduleConfig(): Promise<UrlValidationScheduleConfig>
 saveUrlValidationScheduleConfig(config): Promise<UrlValidationScheduleConfig>
 subscribeToUrlValidationScheduleChanges(onChange): () => void
-buildUrlValidationTargets(bookmarks, selectedBookmarkIds, config): UrlValidationTarget[]
-runScheduledUrlValidation(bookmarks, selectedBookmarkIds, config): Promise<number>
+buildUrlValidationTargets(bookmarks, config): UrlValidationTarget[]
+runScheduledUrlValidation(bookmarks, config): Promise<number>
 ```
 
 #### 3. Contracts
 
 * Storage key: `vtab.urlValidationSchedule`.
-* Storage value: `{ enabled: boolean; intervalMinutes: 15 | 60 | 360 | 1440; scope: "selected" | "all" }`.
+* Storage value: `{ enabled: boolean; intervalMinutes: 15 | 60 | 360 | 1440; scope: "all" | "folder"; targetFolderId?: string }`.
 * Fallback storage may use `localStorage` in preview/development contexts only.
-* `scope === "selected"` uses the current page selection IDs at runtime; it does not store bookmark IDs in the schedule config.
+* `scope === "folder"` uses `targetFolderId` persisted from the settings modal. It must not depend on transient main-page selection state.
 * Scheduled validation only runs while the new-tab page is open, because the current implementation uses a page-local timer.
 * After each scheduled run, refresh the bookmark view so persisted validation badges update in the UI.
 
 #### 4. Validation & Error Matrix
 
 * Disabled schedule -> return zero targets and do not call `validateBookmarkUrls()`.
-* `scope === "selected"` with no selected bookmarks -> return zero targets.
+* `scope === "folder"` with no target folder -> return zero targets.
 * Invalid stored config -> normalize to the default enabled/interval/scope values.
+* Legacy stored `scope === "selected"` values -> normalize to the default all-bookmarks scope.
 * Storage read failure -> return the default schedule config.
 * Storage write failure -> leave the page state unchanged and keep the previous config in storage.
 
 #### 5. Good / Base / Bad Cases
 
-* Good: user enables the schedule in the settings modal, the new-tab page starts a timer, validates the selected or all bookmarks, then refreshes the bookmark view.
+* Good: user enables the schedule in the settings modal, chooses all bookmarks or a specific folder there, the new-tab page starts a timer, validates the configured target, then refreshes the bookmark view.
 * Base: the schedule is disabled, so the page does not create an interval or trigger background validation.
 * Bad: writing scheduled-check status into native bookmark titles or folders, or assuming the timer survives after the new-tab page is closed.
 
@@ -265,8 +273,8 @@ runScheduledUrlValidation(bookmarks, selectedBookmarkIds, config): Promise<numbe
 
 * Unit-test schedule config normalization and storage load/save with mocked `wxt/browser`.
 * Assert invalid stored values normalize to the default schedule config.
-* Assert selected-scope target building uses the current page selection IDs.
-* Assert the scheduled runner returns zero when disabled or when selected scope has no selected bookmarks.
+* Assert folder-scope target building uses the persisted `targetFolderId`.
+* Assert the scheduled runner returns zero when disabled or when folder scope has no target folder.
 
 #### 7. Wrong vs Correct
 
@@ -279,7 +287,7 @@ await validateBookmarkUrls(bookmarks.map((bookmark) => ({ id: bookmark.id, url: 
 #### Correct
 
 ```ts
-const targets = buildUrlValidationTargets(bookmarks, selectedBookmarkIds, scheduleConfig);
+const targets = buildUrlValidationTargets(bookmarks, scheduleConfig);
 await validateBookmarkUrls(targets);
 ```
 
