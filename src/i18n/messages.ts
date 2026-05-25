@@ -61,6 +61,27 @@ export interface AppMessages {
       deleteComplete: (count: number) => string;
       moveComplete: (count: number) => string;
     };
+    llm: {
+      applied: string;
+      apply: string;
+      applyAll: string;
+      applyError: string;
+      clear: string;
+      confidence: (score: number) => string;
+      error: string;
+      eyebrow: string;
+      loading: string;
+      newFolderPrefix: string;
+      noBookmarks: string;
+      reject: string;
+      reviewTitle: string;
+      status: {
+        applied: string;
+        pending: string;
+        rejected: string;
+      };
+      suggestionsReady: (count: number) => string;
+    };
     urlValidation: {
       check: string;
       checking: string;
@@ -225,6 +246,27 @@ export const messages: Record<LanguageCode, AppMessages> = {
         deleteComplete: (count) => `Deleted ${count} item${count === 1 ? "" : "s"}.`,
         moveComplete: (count) => `Moved ${count} item${count === 1 ? "" : "s"}.`
       },
+      llm: {
+        applied: "Suggestion applied.",
+        apply: "Apply",
+        applyAll: "Apply all",
+        applyError: "Unable to apply the suggestion. Refresh bookmarks and try again.",
+        clear: "Clear",
+        confidence: (score) => `${score}% confidence`,
+        error: "Unable to request classification suggestions. Check LLM settings and try again.",
+        eyebrow: "AI suggestions",
+        loading: "Classifying...",
+        newFolderPrefix: "New folder:",
+        noBookmarks: "Select bookmarks or open a folder with bookmarks before requesting suggestions.",
+        reject: "Reject",
+        reviewTitle: "Review classification suggestions",
+        status: {
+          applied: "Applied",
+          pending: "Pending",
+          rejected: "Rejected"
+        },
+        suggestionsReady: (count) => `${count} suggestion${count === 1 ? "" : "s"} ready for review.`
+      },
       urlValidation: {
         check: "Check links",
         checking: "Checking...",
@@ -378,6 +420,27 @@ export const messages: Record<LanguageCode, AppMessages> = {
         action: "撤销",
         deleteComplete: (count) => `已删除 ${count} 个项目。`,
         moveComplete: (count) => `已移动 ${count} 个项目。`
+      },
+      llm: {
+        applied: "建议已应用。",
+        apply: "应用",
+        applyAll: "全部应用",
+        applyError: "无法应用建议。请刷新书签后重试。",
+        clear: "清除",
+        confidence: (score) => `${score}% 置信度`,
+        error: "无法请求分类建议。请检查 LLM 设置后重试。",
+        eyebrow: "AI 建议",
+        loading: "正在分类...",
+        newFolderPrefix: "新建文件夹：",
+        noBookmarks: "请先选择书签，或打开包含书签的文件夹后再请求建议。",
+        reject: "拒绝",
+        reviewTitle: "审核分类建议",
+        status: {
+          applied: "已应用",
+          pending: "待处理",
+          rejected: "已拒绝"
+        },
+        suggestionsReady: (count) => `已生成 ${count} 条建议，可开始审核。`
       },
       urlValidation: {
         check: "检查链接",

@@ -11,6 +11,7 @@ export interface SidebarProps {
   brandTitle?: string;
   brandSubtitle?: string;
   actionLabel?: string;
+  onAction?: () => void;
   actionLabels?: {
     delete: string;
     edit: string;
@@ -41,6 +42,7 @@ export function Sidebar({
   brandSubtitle = "Workspace",
   actionLabel = "AI Organize",
   actionLabels,
+  onAction,
   collapseFolderLabel = (label) => `Collapse ${label}`,
   expandFolderLabel = (label) => `Expand ${label}`,
   folderSectionLabel = "Folders",
@@ -98,7 +100,7 @@ export function Sidebar({
       </div>
 
       <nav className="sidebar__nav" aria-label={navLabel}>
-        <Button className="sidebar__ai-button" icon="sparkles" variant="primary">
+        <Button className="sidebar__ai-button" icon="sparkles" onClick={onAction} variant="primary">
           {actionLabel}
         </Button>
 

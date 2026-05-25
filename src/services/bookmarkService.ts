@@ -135,18 +135,18 @@ export function subscribeToBookmarkChanges(onChange: () => void): () => void {
   };
 }
 
-export async function createBookmark(input: CreateBookmarkInput): Promise<void> {
+export async function createBookmark(input: CreateBookmarkInput): Promise<BrowserBookmarkNode> {
   const bookmarkApi = getBookmarkApi();
-  await bookmarkApi.create({
+  return bookmarkApi.create({
     parentId: input.parentId,
     title: input.title.trim(),
     url: input.url.trim()
   });
 }
 
-export async function createFolder(input: CreateFolderInput): Promise<void> {
+export async function createFolder(input: CreateFolderInput): Promise<BrowserBookmarkNode> {
   const bookmarkApi = getBookmarkApi();
-  await bookmarkApi.create({
+  return bookmarkApi.create({
     parentId: input.parentId,
     title: input.title.trim()
   });

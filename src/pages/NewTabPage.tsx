@@ -28,6 +28,16 @@ import {
   updateFolder,
   type BookmarkNodeSnapshot
 } from "../services/bookmarkService";
+import {
+  applyLlmSuggestion,
+  buildLlmSuggestionScope,
+  loadLlmSuggestionBatch,
+  requestLlmClassificationSuggestions,
+  saveLlmSuggestionBatch,
+  updateSuggestionStatus,
+  type LlmSuggestionBatch,
+  type LlmClassificationSuggestion
+} from "../services/llmSuggestionService";
 import { validateBookmarkUrls } from "../services/urlValidationService";
 import type { BookmarkItem, FolderItem } from "../types/bookmarks";
 
@@ -85,6 +95,9 @@ export function NewTabPage() {
   const [lastSelectedFolderId, setLastSelectedFolderId] = useState<string | null>(null);
   const [moveTargetFolderId, setMoveTargetFolderId] = useState("");
   const [undoState, setUndoState] = useState<UndoState | null>(null);
+  const [isRequestingSuggestions, setIsRequestingSuggestions] = useState(false);
+  const [suggestionBatch, setSuggestionBatch] = useState<LlmSuggestionBatch | null>(null);
+  const [suggestionMessage, setSuggestionMessage] = useState<string | null>(null);
 
   const applyBookmarkView = useCallback((view: Awaited<ReturnType<typeof loadBookmarkView>>) => {
     setFolders(view.folders);
@@ -136,6 +149,24 @@ export function NewTabPage() {
     };
   }, [applyBookmarkView, messages.bookmarkView]);
 
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadSavedSuggestions() {
+      const batch = await loadLlmSuggestionBatch();
+
+      if (isMounted) {
+        setSuggestionBatch(batch);
+      }
+    }
+
+    void loadSavedSuggestions();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   const visibleBookmarks = useMemo(
     () => filterBookmarks(bookmarks, query, selectedFolderId),
     [bookmarks, query, selectedFolderId]
@@ -150,6 +181,12 @@ export function NewTabPage() {
     [bookmarks, folders, selectedItemKeys]
   );
   const hasSelectedItems = selectedItems.length > 0;
+  const selectedBookmarks = useMemo(
+    () => bookmarks.filter((bookmark) => selectedItemKeys.has(`bookmark:${bookmark.id}`)),
+    [bookmarks, selectedItemKeys]
+  );
+  const classificationBookmarks = selectedBookmarks.length ? selectedBookmarks : visibleBookmarks;
+  const pendingSuggestions = suggestionBatch?.suggestions.filter((suggestion) => suggestion.status === "pending") ?? [];
   const editorLabels = useMemo(() => {
     if (editorState?.intent === "create-folder") {
       return messages.newTab.editor.createFolder;
@@ -484,6 +521,65 @@ export function NewTabPage() {
     }
   }
 
+  async function handleRequestSuggestions() {
+    if (!classificationBookmarks.length) {
+      setSuggestionMessage(messages.newTab.llm.noBookmarks);
+      return;
+    }
+
+    try {
+      setIsRequestingSuggestions(true);
+      setSuggestionMessage(null);
+      const batch = await requestLlmClassificationSuggestions(
+        buildLlmSuggestionScope(classificationBookmarks, folders)
+      );
+      setSuggestionBatch(batch);
+      setSuggestionMessage(messages.newTab.llm.suggestionsReady(batch.suggestions.length));
+    } catch (error) {
+      setSuggestionMessage(error instanceof Error ? error.message : messages.newTab.llm.error);
+    } finally {
+      setIsRequestingSuggestions(false);
+    }
+  }
+
+  async function persistSuggestionBatch(batch: LlmSuggestionBatch | null) {
+    setSuggestionBatch(batch);
+    await saveLlmSuggestionBatch(batch);
+  }
+
+  async function handleRejectSuggestion(suggestionId: string) {
+    if (!suggestionBatch) {
+      return;
+    }
+
+    await persistSuggestionBatch(updateSuggestionStatus(suggestionBatch, suggestionId, "rejected"));
+  }
+
+  async function handleApplySuggestion(suggestion: LlmClassificationSuggestion) {
+    if (!suggestionBatch) {
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+      await applyLlmSuggestion(suggestion, folders);
+      const nextBatch = updateSuggestionStatus(suggestionBatch, suggestion.id, "applied");
+      await persistSuggestionBatch(nextBatch);
+      await refreshBookmarks();
+      setSuggestionMessage(messages.newTab.llm.applied);
+    } catch (error) {
+      setSuggestionMessage(error instanceof Error ? error.message : messages.newTab.llm.applyError);
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function handleApplyAllSuggestions() {
+    for (const suggestion of pendingSuggestions) {
+      await handleApplySuggestion(suggestion);
+    }
+  }
+
   async function handleValidateVisibleBookmarks() {
     if (!visibleBookmarks.length) {
       return;
@@ -521,7 +617,7 @@ export function NewTabPage() {
       resizeSidebarLabel={messages.appShell.resizeSidebar}
       sidebar={
         <Sidebar
-          actionLabel={messages.newTab.sidebar.actionLabel}
+          actionLabel={isRequestingSuggestions ? messages.newTab.llm.loading : messages.newTab.sidebar.actionLabel}
           actionLabels={messages.newTab.folderActions}
           brandSubtitle={messages.newTab.sidebar.brandSubtitle}
           brandTitle="vTab"
@@ -530,6 +626,7 @@ export function NewTabPage() {
           folderSectionLabel={messages.newTab.sidebar.folderSectionLabel}
           folders={folders}
           navLabel={messages.newTab.sidebar.navLabel}
+          onAction={handleRequestSuggestions}
           onDeleteFolder={handleDeleteFolder}
           onDragFolderStart={handleFolderDragStart}
           onDropBeforeFolder={handleDropBeforeFolder}
@@ -636,6 +733,50 @@ export function NewTabPage() {
               {messages.newTab.undo.action}
             </Button>
           </div>
+        ) : null}
+        {suggestionMessage ? <p className="validation-feedback">{suggestionMessage}</p> : null}
+        {suggestionBatch ? (
+          <section className="llm-review-panel" aria-label={messages.newTab.llm.reviewTitle}>
+            <div className="llm-review-panel__heading">
+              <div>
+                <p className="eyebrow">{messages.newTab.llm.eyebrow}</p>
+                <h3>{messages.newTab.llm.reviewTitle}</h3>
+              </div>
+              <div className="llm-review-panel__actions">
+                <Button disabled={!pendingSuggestions.length || isSaving} icon="check" onClick={handleApplyAllSuggestions} variant="primary">
+                  {messages.newTab.llm.applyAll}
+                </Button>
+                <Button disabled={isSaving} onClick={() => void persistSuggestionBatch(null)} variant="subtle">
+                  {messages.newTab.llm.clear}
+                </Button>
+              </div>
+            </div>
+            <div className="llm-suggestion-list">
+              {suggestionBatch.suggestions.map((suggestion) => (
+                <article className="llm-suggestion" key={suggestion.id}>
+                  <div>
+                    <h4>{resolveSuggestionBookmarkTitle(suggestion, bookmarks)}</h4>
+                    <p>{formatSuggestionTarget(suggestion, folders, messages.newTab.llm.newFolderPrefix)}</p>
+                    <p>{suggestion.reason}</p>
+                  </div>
+                  <div className="llm-suggestion__meta">
+                    <span>{messages.newTab.llm.confidence(Math.round(suggestion.confidence * 100))}</span>
+                    <span>{messages.newTab.llm.status[suggestion.status]}</span>
+                  </div>
+                  {suggestion.status === "pending" ? (
+                    <div className="llm-suggestion__actions">
+                      <Button disabled={isSaving} icon="check" onClick={() => void handleApplySuggestion(suggestion)} variant="glass">
+                        {messages.newTab.llm.apply}
+                      </Button>
+                      <Button disabled={isSaving} icon="x" onClick={() => void handleRejectSuggestion(suggestion.id)} variant="subtle">
+                        {messages.newTab.llm.reject}
+                      </Button>
+                    </div>
+                  ) : null}
+                </article>
+              ))}
+            </div>
+          </section>
         ) : null}
 
         {errorMessage ? (
@@ -816,4 +957,21 @@ function pruneNestedSelections(items: OrganizationItemRef[], folders: FolderItem
         (candidate.id === parentFolderId || isDescendantFolder(folders, candidate.id, parentFolderId))
     );
   });
+}
+
+function resolveSuggestionBookmarkTitle(suggestion: LlmClassificationSuggestion, bookmarks: BookmarkItem[]): string {
+  return bookmarks.find((bookmark) => bookmark.id === suggestion.bookmarkId)?.title ?? suggestion.bookmarkId;
+}
+
+function formatSuggestionTarget(
+  suggestion: LlmClassificationSuggestion,
+  folders: FolderItem[],
+  newFolderPrefix: string
+): string {
+  if (suggestion.newFolderName) {
+    return `${newFolderPrefix} ${suggestion.newFolderName}`;
+  }
+
+  const targetFolder = flattenFolders(folders).find((folder) => folder.id === suggestion.targetFolderId);
+  return targetFolder?.label ?? suggestion.targetFolderId ?? "";
 }

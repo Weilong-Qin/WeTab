@@ -34,6 +34,7 @@ Store user preferences in `browser.storage.local` behind a service:
 * `vtab.language` via `languageService.ts`.
 * `vtab.sidebarWidth` via `layoutPreferenceService.ts`.
 * `vtab.llmConfig` via `llmConfigService.ts`.
+* `vtab.llmSuggestions` via `llmSuggestionService.ts`.
 
 Fallback to `localStorage` only for non-extension preview/development contexts where `browser.storage.local` is unavailable.
 
@@ -277,6 +278,77 @@ Correct:
 
 ```ts
 await testLlmConnection(config);
+```
+
+### LLM classification suggestions
+
+#### 1. Scope / Trigger
+
+This contract applies when the homepage requests, stores, reviews, applies, or rejects LLM bookmark classification suggestions. Suggestions are extension-side metadata and must never directly mutate native bookmarks without user confirmation.
+
+#### 2. Signatures
+
+LLM suggestions belong in `src/services/llmSuggestionService.ts`:
+
+```ts
+buildLlmSuggestionScope(bookmarks, folders): LlmSuggestionRequestScope
+requestLlmClassificationSuggestions(scope, timeoutMs?): Promise<LlmSuggestionBatch>
+loadLlmSuggestionBatch(): Promise<LlmSuggestionBatch | null>
+saveLlmSuggestionBatch(batch): Promise<void>
+updateSuggestionStatus(batch, suggestionId, status): LlmSuggestionBatch
+applyLlmSuggestion(suggestion, folders): Promise<void>
+```
+
+#### 3. Contracts
+
+* Storage key: `vtab.llmSuggestions`.
+* Suggestion statuses: `"pending"`, `"applied"`, `"rejected"`.
+* AI classification must run only after explicit user action.
+* Request scope sends selected bookmarks first; if none are selected, it sends the current visible bookmark list.
+* Request payload includes only bookmark ID, title, URL, domain, folder path, and available folder ID/label pairs.
+* Request payload must not include URL validation status, extension-only metadata, hidden browser data, or fetched page contents.
+* Provider requests use the configured OpenAI-compatible `{baseUrl}/chat/completions` endpoint with the stored API key/model.
+* Model output must be parsed and locally validated before display.
+* Applying a suggestion writes through native bookmarks using `moveBookmarkNode()` and, for new-folder suggestions, `createFolder()` followed by `moveBookmarkNode()`.
+
+#### 4. Validation & Error Matrix
+
+* Missing API key/model -> do not call provider; surface localized missing-config guidance.
+* Empty bookmark scope -> do not call provider; ask user to select/open bookmarks.
+* Non-2xx provider response -> show request failure and preserve existing suggestions.
+* Malformed JSON or unexpected response shape -> show parse failure and do not display invalid suggestions.
+* Suggestion bookmark ID not in request scope -> drop the suggestion.
+* Suggestion target folder ID not in available folders -> drop the suggestion unless it has a valid `newFolderName`.
+* Apply failure from native bookmarks -> surface apply error and leave suggestion pending.
+
+#### 5. Good / Base / Bad Cases
+
+* Good: user selects three bookmarks, clicks AI Classify, reviews suggestions, applies one, rejects another, then the page reloads the native bookmark tree.
+* Base: no selection exists, so the current visible bookmark list is sent for suggestions.
+* Base: a new-folder suggestion creates a native folder under the first native root folder, then moves the bookmark into it.
+* Bad: LLM response directly calls bookmark APIs without user review.
+* Bad: prompt sends all bookmarks when the user selected only a subset.
+
+#### 6. Tests Required
+
+* Unit-test request scope shaping and assert sensitive/status metadata is omitted.
+* Unit-test provider request URL, headers, model, and local response validation.
+* Unit-test persisted suggestion loading/saving and invalid record filtering.
+* Unit-test applying existing-folder and new-folder suggestions through native bookmark API wrappers.
+
+#### 7. Wrong vs Correct
+
+Wrong:
+
+```ts
+await requestLlmClassificationSuggestions(buildLlmSuggestionScope(allBookmarks, folders));
+```
+
+Correct:
+
+```ts
+const scopeBookmarks = selectedBookmarks.length ? selectedBookmarks : visibleBookmarks;
+await requestLlmClassificationSuggestions(buildLlmSuggestionScope(scopeBookmarks, folders));
 ```
 
 ---

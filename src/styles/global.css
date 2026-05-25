@@ -883,6 +883,59 @@ kbd {
   padding: 0 12px;
 }
 
+.llm-review-panel {
+  display: grid;
+  gap: 14px;
+  border: 1px solid var(--color-glass-border);
+  border-radius: var(--radius-card);
+  background: var(--color-glass);
+  padding: 18px;
+}
+
+.llm-review-panel__heading,
+.llm-review-panel__actions,
+.llm-suggestion,
+.llm-suggestion__meta,
+.llm-suggestion__actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.llm-review-panel__heading,
+.llm-suggestion {
+  justify-content: space-between;
+}
+
+.llm-review-panel h3,
+.llm-suggestion h4 {
+  margin: 0;
+}
+
+.llm-suggestion-list {
+  display: grid;
+  gap: 10px;
+}
+
+.llm-suggestion {
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.54);
+  padding: 14px;
+}
+
+.llm-suggestion p {
+  margin: 4px 0 0;
+  color: var(--color-on-surface-variant);
+  font-size: var(--type-label-md-size);
+}
+
+.llm-suggestion__meta {
+  flex-wrap: wrap;
+  color: var(--color-on-surface-variant);
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .bookmark-card__footer {
   display: flex;
   width: 100%;
