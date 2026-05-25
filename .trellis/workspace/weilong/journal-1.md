@@ -208,3 +208,36 @@ Implemented desktop drag-and-drop bookmark and folder organization, folder renam
 ### Next Steps
 
 - None - task complete
+
+
+## Session 7: LLM classification suggestions
+
+**Date**: 2026-05-25
+**Task**: LLM classification suggestions
+**Branch**: `master`
+
+### Summary
+
+Implemented opt-in LLM bookmark classification suggestions with scoped request payloads, review/apply/reject flow, suggestion persistence, native bookmark apply behavior, tests, localization, and state-management spec updates.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `f3bf675` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
