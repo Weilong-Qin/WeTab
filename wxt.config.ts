@@ -9,7 +9,7 @@ export default defineConfig({
     name: "vTab",
     description: "A bookmark-powered browser homepage with a reusable Digital Air design system.",
     version: "0.1.0",
-    permissions: ["bookmarks", "storage"],
+    permissions: ["bookmarks", "favicon", "storage"],
     host_permissions: ["http://*/*", "https://*/*"],
     chrome_url_overrides: {
       newtab: "newtab.html"

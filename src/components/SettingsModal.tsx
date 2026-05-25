@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState, type ChangeEvent } from "react";
+import { useEffect, useMemo, useState, type CSSProperties, type ChangeEvent } from "react";
 import { Button } from "./Button";
 import { GlassPanel } from "./GlassPanel";
+import { Icon } from "./Icon";
 import { Tag } from "./Tag";
 import { useI18n } from "../hooks/useI18n";
 import { useThemePreference } from "../hooks/useThemePreference";
@@ -13,6 +14,7 @@ import {
   testLlmConnection,
   type LlmConfig
 } from "../services/llmConfigService";
+import type { FolderItem } from "../types/bookmarks";
 
 type SaveStatus = "idle" | "saving" | "saved" | "error";
 type TestStatus = "idle" | "testing" | "success" | "error";
@@ -20,11 +22,11 @@ type TestStatus = "idle" | "testing" | "success" | "error";
 const SCHEDULE_INTERVAL_OPTIONS = [15, 60, 360, 1440] as const;
 
 export interface SettingsModalProps {
+  folders: FolderItem[];
   onClose: () => void;
-  selectedBookmarkCount: number;
 }
 
-export function SettingsModal({ onClose, selectedBookmarkCount }: SettingsModalProps) {
+export function SettingsModal({ folders, onClose }: SettingsModalProps) {
   const { isLanguageLoading, language, languageOptions, messages, setLanguage } = useI18n();
   const { isThemePreferenceLoading, setThemePreference, themePreference } = useThemePreference();
   const {
@@ -45,6 +47,10 @@ export function SettingsModal({ onClose, selectedBookmarkCount }: SettingsModalP
     !isBaseUrlValid ||
     !llmConfig.apiKey.trim() ||
     !llmConfig.model.trim();
+  const scheduleFolderOptions = useMemo(
+    () => flattenSettingFolders(folders).filter((folder) => folder.id !== "all"),
+    [folders]
+  );
 
   useEffect(() => {
     let isMounted = true;
@@ -118,9 +124,23 @@ export function SettingsModal({ onClose, selectedBookmarkCount }: SettingsModalP
   }
 
   async function handleScheduleScopeChange(event: ChangeEvent<HTMLSelectElement>) {
+    const scope = event.target.value === "folder" ? "folder" : "all";
+
     await setUrlValidationSchedule({
       ...urlValidationSchedule,
-      scope: event.target.value === "all" ? "all" : "selected"
+      scope,
+      targetFolderId:
+        scope === "folder"
+          ? urlValidationSchedule.targetFolderId ?? scheduleFolderOptions[0]?.id
+          : undefined
+    });
+  }
+
+  async function handleScheduleFolderChange(event: ChangeEvent<HTMLSelectElement>) {
+    await setUrlValidationSchedule({
+      ...urlValidationSchedule,
+      scope: "folder",
+      targetFolderId: event.target.value || undefined
     });
   }
 
@@ -143,8 +163,10 @@ export function SettingsModal({ onClose, selectedBookmarkCount }: SettingsModalP
         <div className="settings-modal__heading">
           <div>
             <Tag tone="blue">{messages.settings.title}</Tag>
-            <h2>{messages.settings.title}</h2>
-            <p>{messages.settings.description}</p>
+            <h2 className="settings-panel__title-with-icon">
+              {messages.settings.title}
+              <SettingsInfoTooltip text={messages.settings.description} />
+            </h2>
           </div>
           <Button aria-label={messages.settings.close} icon="x" onClick={onClose} variant="icon" />
         </div>
@@ -152,10 +174,10 @@ export function SettingsModal({ onClose, selectedBookmarkCount }: SettingsModalP
         <div className="settings-modal__content">
           <section className="settings-section">
             <div className="settings-panel__heading">
-              <div>
-                <h3>{messages.settings.languageTitle}</h3>
-                <p>{messages.settings.languageHelp}</p>
-              </div>
+              <h3 className="settings-panel__title-with-icon">
+                {messages.settings.languageTitle}
+                <SettingsInfoTooltip text={messages.settings.languageHelp} />
+              </h3>
             </div>
             <div className="settings-form settings-form--split">
               <label>
@@ -169,7 +191,10 @@ export function SettingsModal({ onClose, selectedBookmarkCount }: SettingsModalP
                 </select>
               </label>
               <label>
-                <span>{messages.settings.themeLabel}</span>
+                <div className="settings-label-with-icon">
+                  <span>{messages.settings.themeLabel}</span>
+                  <SettingsInfoTooltip align="end" inline size={14} text={messages.settings.themeDescription} />
+                </div>
                 <select disabled={isThemePreferenceLoading} onChange={handleThemeChange} value={themePreference}>
                   <option value="light">{messages.settings.themeModes.light}</option>
                   <option value="dark">{messages.settings.themeModes.dark}</option>
@@ -177,17 +202,14 @@ export function SettingsModal({ onClose, selectedBookmarkCount }: SettingsModalP
                 </select>
               </label>
             </div>
-            <div className="settings-note">
-              <p>{messages.settings.themeDescription}</p>
-            </div>
           </section>
 
           <section className="settings-section">
             <div className="settings-panel__heading">
-              <div>
-                <h3>{messages.settings.providerTitle}</h3>
-                <p>{messages.settings.providerHelp}</p>
-              </div>
+              <h3 className="settings-panel__title-with-icon">
+                {messages.settings.providerTitle}
+                <SettingsInfoTooltip text={`${messages.settings.providerHelp}\n\n${messages.settings.dataSentTitle}: ${messages.settings.dataSentDescription}`} />
+              </h3>
               <Button
                 disabled={isTestConnectionDisabled}
                 icon="shield"
@@ -239,19 +261,14 @@ export function SettingsModal({ onClose, selectedBookmarkCount }: SettingsModalP
                 {providerStatusMessage}
               </p>
             ) : null}
-
-            <div className="settings-note">
-              <strong>{messages.settings.dataSentTitle}</strong>
-              <p>{messages.settings.dataSentDescription}</p>
-            </div>
           </section>
 
           <section className="settings-section">
             <div className="settings-panel__heading">
-              <div>
-                <h3>{messages.settings.scheduleTitle}</h3>
-                <p>{messages.settings.scheduleHelp}</p>
-              </div>
+              <h3 className="settings-panel__title-with-icon">
+                {messages.settings.scheduleTitle}
+                <SettingsInfoTooltip text={messages.settings.scheduleHelp} />
+              </h3>
             </div>
 
             <div className="settings-form settings-form--split">
@@ -279,31 +296,102 @@ export function SettingsModal({ onClose, selectedBookmarkCount }: SettingsModalP
                 </select>
               </label>
               <label>
-                <span>{messages.settings.scheduleScopeLabel}</span>
+                <div className="settings-label-with-icon">
+                  <span>{messages.settings.scheduleScopeLabel}</span>
+                  <SettingsInfoTooltip align="end" inline size={14} text={messages.settings.scheduleScopeDescription} />
+                </div>
                 <select
                   disabled={isUrlValidationScheduleLoading || !urlValidationSchedule.enabled}
                   onChange={(event) => void handleScheduleScopeChange(event)}
                   value={urlValidationSchedule.scope}
                 >
-                  <option value="selected">{messages.settings.scheduleScopeSelected}</option>
                   <option value="all">{messages.settings.scheduleScopeAll}</option>
+                  <option value="folder">{messages.settings.scheduleScopeFolder}</option>
                 </select>
               </label>
-            </div>
-
-            <div className="settings-note">
-              <p>{messages.settings.scheduleScopeDescription}</p>
-              <p>{messages.settings.scheduleScopeSelectedNote(selectedBookmarkCount)}</p>
-              {urlValidationSchedule.scope === "selected" && selectedBookmarkCount === 0 ? (
-                <strong className="settings-status settings-status--warning">
-                  {messages.settings.scheduleScopeNoSelection}
-                </strong>
+              {urlValidationSchedule.scope === "folder" ? (
+                <label>
+                  <span>{messages.settings.scheduleFolderLabel}</span>
+                  <select
+                    disabled={isUrlValidationScheduleLoading || !urlValidationSchedule.enabled || !scheduleFolderOptions.length}
+                    onChange={(event) => void handleScheduleFolderChange(event)}
+                    value={urlValidationSchedule.targetFolderId ?? ""}
+                  >
+                    <option value="">{messages.settings.scheduleFolderPlaceholder}</option>
+                    {scheduleFolderOptions.map((folder) => (
+                      <option key={folder.id} value={folder.id}>
+                        {folder.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
               ) : null}
             </div>
+
+            {urlValidationSchedule.scope === "folder" && !urlValidationSchedule.targetFolderId ? (
+              <div className="settings-note">
+                <strong className="settings-status settings-status--warning" style={{ marginTop: 0 }}>
+                  {messages.settings.scheduleFolderRequired}
+                </strong>
+              </div>
+            ) : null}
           </section>
         </div>
       </GlassPanel>
     </div>
+  );
+}
+
+function flattenSettingFolders(folders: FolderItem[]): FolderItem[] {
+  return folders.flatMap((folder) => [folder, ...flattenSettingFolders(folder.children ?? [])]);
+}
+
+interface SettingsInfoTooltipProps {
+  align?: "center" | "end";
+  inline?: boolean;
+  size?: number;
+  text: string;
+}
+
+function SettingsInfoTooltip({ align = "center", inline = false, size = 16, text }: SettingsInfoTooltipProps) {
+  const [tooltipPosition, setTooltipPosition] = useState<{ left: number; top: number } | null>(null);
+  const tooltipStyle = tooltipPosition
+    ? ({
+        "--tooltip-left": `${tooltipPosition.left}px`,
+        "--tooltip-top": `${tooltipPosition.top}px`
+      } as CSSProperties)
+    : undefined;
+
+  function showTooltip(target: HTMLElement) {
+    const rect = target.getBoundingClientRect();
+    setTooltipPosition({
+      left: align === "end" ? rect.right : rect.left + rect.width / 2,
+      top: rect.bottom + 10
+    });
+  }
+
+  function hideTooltip() {
+    setTooltipPosition(null);
+  }
+
+  return (
+    <span
+      aria-label={text}
+      className={`settings-info-tooltip settings-info-tooltip--${align}${inline ? " settings-info-tooltip--inline" : ""}`}
+      onBlur={hideTooltip}
+      onFocus={(event) => showTooltip(event.currentTarget)}
+      onMouseEnter={(event) => showTooltip(event.currentTarget)}
+      onMouseLeave={hideTooltip}
+      role="img"
+      tabIndex={0}
+    >
+      <Icon name="info" size={size} />
+      {tooltipPosition ? (
+        <span className={`settings-info-tooltip__bubble settings-info-tooltip__bubble--${align}`} role="tooltip" style={tooltipStyle}>
+          {text}
+        </span>
+      ) : null}
+    </span>
   );
 }
 

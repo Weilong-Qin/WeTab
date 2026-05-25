@@ -93,7 +93,7 @@ describe("urlValidationScheduleService", () => {
     expect(normalizeUrlValidationScheduleConfig(null)).toEqual(DEFAULT_URL_VALIDATION_SCHEDULE_CONFIG);
     expect(
       normalizeUrlValidationScheduleConfig({ enabled: true, intervalMinutes: 7, scope: "selected" })
-    ).toEqual({ enabled: true, intervalMinutes: 60, scope: "selected" });
+    ).toEqual({ enabled: true, intervalMinutes: 60, scope: "all", targetFolderId: undefined });
   });
 
   it("loads and saves the schedule config with storage fallback", async () => {
@@ -101,43 +101,49 @@ describe("urlValidationScheduleService", () => {
       "vtab.urlValidationSchedule": {
         enabled: true,
         intervalMinutes: 15,
-        scope: "all"
+        scope: "folder",
+        targetFolderId: "1"
       }
     });
 
     await expect(loadUrlValidationScheduleConfig()).resolves.toEqual({
       enabled: true,
       intervalMinutes: 15,
-      scope: "all"
+      scope: "folder",
+      targetFolderId: "1"
     });
 
     storageMock.get.mockRejectedValueOnce(new Error("storage unavailable"));
     globalThis.localStorage.setItem(
       "vtab.urlValidationSchedule",
-      JSON.stringify({ enabled: true, intervalMinutes: 360, scope: "selected" })
+      JSON.stringify({ enabled: true, intervalMinutes: 360, scope: "folder", targetFolderId: "1" })
     );
     await expect(loadUrlValidationScheduleConfig()).resolves.toEqual({
       enabled: true,
       intervalMinutes: 360,
-      scope: "selected"
+      scope: "folder",
+      targetFolderId: "1"
     });
 
     await expect(
-      saveUrlValidationScheduleConfig({ enabled: true, intervalMinutes: 360, scope: "selected" })
-    ).resolves.toEqual({ enabled: true, intervalMinutes: 360, scope: "selected" });
+      saveUrlValidationScheduleConfig({ enabled: true, intervalMinutes: 360, scope: "folder", targetFolderId: "1" })
+    ).resolves.toEqual({ enabled: true, intervalMinutes: 360, scope: "folder", targetFolderId: "1" });
 
     expect(storageMock.set).toHaveBeenCalledWith({
-      "vtab.urlValidationSchedule": { enabled: true, intervalMinutes: 360, scope: "selected" }
+      "vtab.urlValidationSchedule": { enabled: true, intervalMinutes: 360, scope: "folder", targetFolderId: "1" }
     });
   });
 
-  it("builds validation targets from selected bookmarks or all bookmarks", async () => {
+  it("builds validation targets from a configured folder or all bookmarks", async () => {
     expect(
-      buildUrlValidationTargets(bookmarks, ["2"], { enabled: true, intervalMinutes: 60, scope: "selected" })
-    ).toEqual([{ id: "2", url: "https://example.org" }]);
+      buildUrlValidationTargets(bookmarks, { enabled: true, intervalMinutes: 60, scope: "folder", targetFolderId: "1" })
+    ).toEqual([
+      { id: "1", url: "https://example.com" },
+      { id: "2", url: "https://example.org" }
+    ]);
 
     expect(
-      buildUrlValidationTargets(bookmarks, [], { enabled: true, intervalMinutes: 60, scope: "all" })
+      buildUrlValidationTargets(bookmarks, { enabled: true, intervalMinutes: 60, scope: "all" })
     ).toEqual([
       { id: "1", url: "https://example.com" },
       { id: "2", url: "https://example.org" }
@@ -146,14 +152,17 @@ describe("urlValidationScheduleService", () => {
 
   it("runs scheduled validation only when enabled and returns the target count", async () => {
     await expect(
-      runScheduledUrlValidation(bookmarks, ["1"], { enabled: false, intervalMinutes: 60, scope: "selected" })
+      runScheduledUrlValidation(bookmarks, { enabled: false, intervalMinutes: 60, scope: "folder", targetFolderId: "1" })
     ).resolves.toBe(0);
 
     await expect(
-      runScheduledUrlValidation(bookmarks, ["1"], { enabled: true, intervalMinutes: 60, scope: "selected" })
-    ).resolves.toBe(1);
+      runScheduledUrlValidation(bookmarks, { enabled: true, intervalMinutes: 60, scope: "folder", targetFolderId: "1" })
+    ).resolves.toBe(2);
 
-    expect(validateBookmarkUrlsMock).toHaveBeenCalledWith([{ id: "1", url: "https://example.com" }]);
+    expect(validateBookmarkUrlsMock).toHaveBeenCalledWith([
+      { id: "1", url: "https://example.com" },
+      { id: "2", url: "https://example.org" }
+    ]);
   });
 });
 

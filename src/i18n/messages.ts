@@ -47,9 +47,17 @@ export interface AppMessages {
       edit: string;
       select: string;
     };
+    contextMenu: {
+      copyTo: string;
+      delete: string;
+      moveTo: string;
+      renameBookmark: string;
+      renameFolder: string;
+    };
     selection: {
       chooseFolder: string;
       clear: string;
+      copyTo: string;
       delete: string;
       done: string;
       moveTo: string;
@@ -58,6 +66,7 @@ export interface AppMessages {
     };
     undo: {
       action: string;
+      copyComplete: (count: number) => string;
       deleteComplete: (count: number) => string;
       moveComplete: (count: number) => string;
     };
@@ -127,6 +136,9 @@ export interface AppMessages {
         urlLabel: string;
       };
     };
+    feedback: {
+      close: string;
+    };
     sidebar: {
       actionLabel: string;
       brandSubtitle: string;
@@ -134,10 +146,6 @@ export interface AppMessages {
       expandFolder: (label: string) => string;
       folderSectionLabel: string;
       navLabel: string;
-      profileSubtitle: string;
-      profileTitle: string;
-      statusAccessNeeded: string;
-      statusLive: string;
     };
   };
   options: {
@@ -209,10 +217,11 @@ export interface AppMessages {
     scheduleIntervalLabel: string;
     scheduleScopeLabel: string;
     scheduleScopeDescription: string;
-    scheduleScopeSelected: string;
     scheduleScopeAll: string;
-    scheduleScopeSelectedNote: (count: number) => string;
-    scheduleScopeNoSelection: string;
+    scheduleScopeFolder: string;
+    scheduleFolderLabel: string;
+    scheduleFolderPlaceholder: string;
+    scheduleFolderRequired: string;
   };
 }
 
@@ -279,9 +288,17 @@ export const messages: Record<LanguageCode, AppMessages> = {
         edit: "Rename folder",
         select: "Select folder"
       },
+      contextMenu: {
+        copyTo: "Copy to",
+        delete: "Delete",
+        moveTo: "Move to",
+        renameBookmark: "Rename bookmark",
+        renameFolder: "Rename folder"
+      },
       selection: {
         chooseFolder: "Choose folder",
         clear: "Clear",
+        copyTo: "Copy to...",
         delete: "Delete selected",
         done: "Done",
         moveTo: "Move to...",
@@ -290,6 +307,7 @@ export const messages: Record<LanguageCode, AppMessages> = {
       },
       undo: {
         action: "Undo",
+        copyComplete: (count) => `Copied ${count} item${count === 1 ? "" : "s"}.`,
         deleteComplete: (count) => `Deleted ${count} item${count === 1 ? "" : "s"}.`,
         moveComplete: (count) => `Moved ${count} item${count === 1 ? "" : "s"}.`
       },
@@ -359,17 +377,16 @@ export const messages: Record<LanguageCode, AppMessages> = {
           urlLabel: "URL"
         }
       },
+      feedback: {
+        close: "Dismiss notification"
+      },
       sidebar: {
         actionLabel: "AI Classify",
         brandSubtitle: "Bookmark Home",
         collapseFolder: (label) => `Collapse ${label}`,
         expandFolder: (label) => `Expand ${label}`,
         folderSectionLabel: "Folders",
-        navLabel: "Bookmark folders",
-        profileSubtitle: "Native source",
-        profileTitle: "Browser Bookmarks",
-        statusAccessNeeded: "Bookmark Access Needed",
-        statusLive: "Native Bookmarks Live"
+        navLabel: "Bookmark folders"
       }
     },
     options: {
@@ -443,14 +460,12 @@ export const messages: Record<LanguageCode, AppMessages> = {
       scheduleEnabledLabel: "Enable scheduled checks",
       scheduleIntervalLabel: "Check interval",
       scheduleScopeLabel: "Scope",
-      scheduleScopeDescription: "Choose whether scheduled checks inspect all bookmarks or only the bookmarks selected in the current page.",
-      scheduleScopeSelected: "Selected bookmarks",
+      scheduleScopeDescription: "Choose whether scheduled checks inspect all bookmarks or bookmarks inside one folder. Folder choices are saved here and do not depend on the current page selection.",
       scheduleScopeAll: "All bookmarks",
-      scheduleScopeSelectedNote: (count) =>
-        count > 0
-          ? `${count} selected bookmark${count === 1 ? "" : "s"} will be checked.`
-          : "Select bookmarks on the page before using the selected scope.",
-      scheduleScopeNoSelection: "Select bookmarks on the page before using the selected scope."
+      scheduleScopeFolder: "Specific folder",
+      scheduleFolderLabel: "Folder to check",
+      scheduleFolderPlaceholder: "Choose a folder",
+      scheduleFolderRequired: "Choose a folder before using the folder scope."
     }
   },
   "zh-CN": {
@@ -505,9 +520,17 @@ export const messages: Record<LanguageCode, AppMessages> = {
         edit: "重命名文件夹",
         select: "选择文件夹"
       },
+      contextMenu: {
+        copyTo: "复制到",
+        delete: "删除",
+        moveTo: "移动到",
+        renameBookmark: "重命名书签",
+        renameFolder: "重命名文件夹"
+      },
       selection: {
         chooseFolder: "选择文件夹",
         clear: "清除",
+        copyTo: "复制到...",
         delete: "删除已选",
         done: "完成",
         moveTo: "移动到...",
@@ -516,6 +539,7 @@ export const messages: Record<LanguageCode, AppMessages> = {
       },
       undo: {
         action: "撤销",
+        copyComplete: (count) => `已复制 ${count} 个项目。`,
         deleteComplete: (count) => `已删除 ${count} 个项目。`,
         moveComplete: (count) => `已移动 ${count} 个项目。`
       },
@@ -585,17 +609,16 @@ export const messages: Record<LanguageCode, AppMessages> = {
           urlLabel: "URL"
         }
       },
+      feedback: {
+        close: "关闭提醒"
+      },
       sidebar: {
         actionLabel: "AI 分类",
         brandSubtitle: "书签主页",
         collapseFolder: (label) => `折叠${label}`,
         expandFolder: (label) => `展开${label}`,
         folderSectionLabel: "文件夹",
-        navLabel: "书签文件夹",
-        profileSubtitle: "原生来源",
-        profileTitle: "浏览器书签",
-        statusAccessNeeded: "需要书签访问权限",
-        statusLive: "原生书签已同步"
+        navLabel: "书签文件夹"
       }
     },
     options: {
@@ -668,14 +691,12 @@ export const messages: Record<LanguageCode, AppMessages> = {
       scheduleEnabledLabel: "启用定时检查",
       scheduleIntervalLabel: "检查间隔",
       scheduleScopeLabel: "范围",
-      scheduleScopeDescription: "选择定时检查是扫描全部书签，还是只扫描当前页面里选中的书签。",
-      scheduleScopeSelected: "已选书签",
+      scheduleScopeDescription: "选择定时检查是扫描全部书签，还是扫描某个文件夹内的书签。文件夹选择会保存在这里，不再依赖主界面的当前选中项。",
       scheduleScopeAll: "全部书签",
-      scheduleScopeSelectedNote: (count) =>
-        count > 0
-          ? `将检查当前选中的 ${count} 个书签。`
-          : "请先在页面中选中书签，再使用已选范围。",
-      scheduleScopeNoSelection: "请先在页面中选中书签，再使用已选范围。"
+      scheduleScopeFolder: "指定文件夹",
+      scheduleFolderLabel: "检查文件夹",
+      scheduleFolderPlaceholder: "选择文件夹",
+      scheduleFolderRequired: "请先选择文件夹，再使用指定文件夹范围。"
     }
   }
 };

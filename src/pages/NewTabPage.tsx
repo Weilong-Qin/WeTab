@@ -1,10 +1,21 @@
-import { useCallback, useEffect, useMemo, useState, type DragEvent, type MouseEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type DragEvent,
+  type MouseEvent,
+  type PointerEvent as ReactPointerEvent
+} from "react";
 import { AppShell } from "../components/AppShell";
 import { BookmarkCard } from "../components/BookmarkCard";
 import { BookmarkEditorModal, type BookmarkEditorValues } from "../components/BookmarkEditorModal";
 import { Breadcrumbs } from "../components/Breadcrumbs";
 import { Button } from "../components/Button";
 import { EmptyState } from "../components/EmptyState";
+import { Icon } from "../components/Icon";
 import { Sidebar } from "../components/Sidebar";
 import { TopSearch } from "../components/TopSearch";
 import { useI18n } from "../hooks/useI18n";
@@ -12,6 +23,7 @@ import { SettingsModal } from "../components/SettingsModal";
 import { useThemePreference } from "../hooks/useThemePreference";
 import { useUrlValidationSchedule } from "../hooks/useUrlValidationSchedule";
 import {
+  copyBookmarkNode,
   createBookmark,
   createFolder,
   captureBookmarkNodeSnapshots,
@@ -68,10 +80,33 @@ type UndoState =
       type: "move";
     }
   | {
+      entries: OrganizationItemRef[];
+      label: string;
+      type: "copy";
+    }
+  | {
       label: string;
       snapshots: BookmarkNodeSnapshot[];
       type: "delete";
     };
+
+interface ContextMenuState {
+  item: OrganizationItemRef;
+  label: string;
+  x: number;
+  y: number;
+}
+
+type SelectionRegion = "bookmarks" | "folders";
+
+interface MarqueeSelectionState {
+  baseKeys: Set<string>;
+  currentX: number;
+  currentY: number;
+  originX: number;
+  originY: number;
+  region: SelectionRegion;
+}
 
 const EMPTY_EDITOR_VALUES: BookmarkEditorValues = {
   title: "",
@@ -97,7 +132,7 @@ export function NewTabPage() {
   const [editorError, setEditorError] = useState<string | null>(null);
   const [editorState, setEditorState] = useState<EditorState | null>(null);
   const [editorValues, setEditorValues] = useState<BookmarkEditorValues>(EMPTY_EDITOR_VALUES);
-  const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [selectionModeRegion, setSelectionModeRegion] = useState<SelectionRegion | null>(null);
   const [selectedItemKeys, setSelectedItemKeys] = useState<Set<string>>(() => new Set());
   const [lastSelectedBookmarkId, setLastSelectedBookmarkId] = useState<string | null>(null);
   const [lastSelectedFolderId, setLastSelectedFolderId] = useState<string | null>(null);
@@ -107,6 +142,53 @@ export function NewTabPage() {
   const [suggestionBatch, setSuggestionBatch] = useState<LlmSuggestionBatch | null>(null);
   const [suggestionMessage, setSuggestionMessage] = useState<string | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+  const [marqueeSelection, setMarqueeSelection] = useState<MarqueeSelectionState | null>(null);
+  const sidebarSelectionRef = useRef<HTMLElement | null>(null);
+  const contentSelectionRef = useRef<HTMLElement | null>(null);
+  const lastSelectionRegionRef = useRef<SelectionRegion | null>(null);
+  const validationMessageTimeoutRef = useRef<ReturnType<typeof globalThis.setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (validationMessageTimeoutRef.current !== null) {
+        globalThis.clearTimeout(validationMessageTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!contextMenu) {
+      return;
+    }
+
+    function closeContextMenu() {
+      setContextMenu(null);
+    }
+
+    window.addEventListener("click", closeContextMenu);
+    window.addEventListener("keydown", closeContextMenu);
+    window.addEventListener("resize", closeContextMenu);
+
+    return () => {
+      window.removeEventListener("click", closeContextMenu);
+      window.removeEventListener("keydown", closeContextMenu);
+      window.removeEventListener("resize", closeContextMenu);
+    };
+  }, [contextMenu]);
+
+  function dismissValidationMessage() {
+    if (validationMessageTimeoutRef.current !== null) {
+      globalThis.clearTimeout(validationMessageTimeoutRef.current);
+      validationMessageTimeoutRef.current = null;
+    }
+
+    setValidationMessage(null);
+  }
+
+  function dismissSuggestionMessage() {
+    setSuggestionMessage(null);
+  }
 
   const applyBookmarkView = useCallback((view: Awaited<ReturnType<typeof loadBookmarkView>>) => {
     setFolders(view.folders);
@@ -185,18 +267,23 @@ export function NewTabPage() {
     [folders, selectedFolderId]
   );
   const flatFolders = useMemo(() => flattenFolders(folders).filter((folder) => folder.id !== "all"), [folders]);
+  const contextMenuTargetFolders = useMemo(() => {
+    if (!contextMenu) {
+      return flatFolders;
+    }
+
+    return flatFolders.filter((folder) => canMoveItem(contextMenu.item, folder.id, folders));
+  }, [contextMenu, flatFolders, folders]);
   const selectedItems = useMemo(
     () => getSelectedOrganizationItems(selectedItemKeys, bookmarks, folders),
     [bookmarks, folders, selectedItemKeys]
   );
   const hasSelectedItems = selectedItems.length > 0;
+  const isBookmarkSelectionMode = selectionModeRegion === "bookmarks";
+  const isFolderSelectionMode = selectionModeRegion === "folders";
   const selectedBookmarks = useMemo(
     () => bookmarks.filter((bookmark) => selectedItemKeys.has(`bookmark:${bookmark.id}`)),
     [bookmarks, selectedItemKeys]
-  );
-  const selectedBookmarkIds = useMemo(
-    () => selectedBookmarks.map((bookmark) => bookmark.id),
-    [selectedBookmarks]
   );
   const classificationBookmarks = selectedBookmarks.length ? selectedBookmarks : visibleBookmarks;
   const pendingSuggestions = suggestionBatch?.suggestions.filter((suggestion) => suggestion.status === "pending") ?? [];
@@ -217,6 +304,85 @@ export function NewTabPage() {
   }, [editorState?.intent, messages.newTab.editor]);
 
   useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (editorState || isSettingsOpen || contextMenu) {
+        return;
+      }
+
+      if (!isSelectAllShortcut(event) || isTextEditingTarget(event.target)) {
+        return;
+      }
+
+      const region = resolveKeyboardSelectionRegion(
+        event.target,
+        sidebarSelectionRef.current,
+        contentSelectionRef.current,
+        lastSelectionRegionRef.current
+      );
+      const nextKeys = buildSelectAllKeys(region, flatFolders, visibleBookmarks);
+
+      if (!nextKeys.size) {
+        return;
+      }
+
+      event.preventDefault();
+      setSelectedItemKeys(nextKeys);
+      setSelectionModeRegion(region);
+      lastSelectionRegionRef.current = region;
+
+      if (region === "folders") {
+        setLastSelectedFolderId(flatFolders.at(-1)?.id ?? null);
+      }
+
+      if (region === "bookmarks") {
+        setLastSelectedBookmarkId(visibleBookmarks.at(-1)?.id ?? null);
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [contextMenu, editorState, flatFolders, isSettingsOpen, visibleBookmarks]);
+
+  useEffect(() => {
+    if (!marqueeSelection) {
+      return;
+    }
+
+    const activeSelection = marqueeSelection;
+
+    function handlePointerMove(event: PointerEvent) {
+      const nextSelection: MarqueeSelectionState = {
+        baseKeys: activeSelection.baseKeys,
+        currentX: event.clientX,
+        currentY: event.clientY,
+        originX: activeSelection.originX,
+        originY: activeSelection.originY,
+        region: activeSelection.region
+      };
+
+      setMarqueeSelection(nextSelection);
+      setSelectedItemKeys(readMarqueeSelectionKeys(nextSelection, sidebarSelectionRef.current, contentSelectionRef.current));
+    }
+
+    function handlePointerUp() {
+      setMarqueeSelection(null);
+    }
+
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp);
+    window.addEventListener("pointercancel", handlePointerUp);
+
+    return () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+      window.removeEventListener("pointercancel", handlePointerUp);
+    };
+  }, [marqueeSelection]);
+
+  useEffect(() => {
     if (!urlValidationSchedule.enabled || isUrlValidationScheduleLoading) {
       return;
     }
@@ -225,7 +391,7 @@ export function NewTabPage() {
 
     async function runValidation() {
       try {
-        await runScheduledUrlValidation(bookmarks, selectedBookmarkIds, urlValidationSchedule);
+        await runScheduledUrlValidation(bookmarks, urlValidationSchedule);
 
         if (isMounted) {
           await refreshBookmarks();
@@ -245,7 +411,7 @@ export function NewTabPage() {
       isMounted = false;
       globalThis.clearInterval(intervalId);
     };
-  }, [bookmarks, isUrlValidationScheduleLoading, refreshBookmarks, selectedBookmarkIds, urlValidationSchedule]);
+  }, [bookmarks, isUrlValidationScheduleLoading, refreshBookmarks, urlValidationSchedule]);
 
   function openCreateBookmark() {
     setEditorState({ intent: "create-bookmark" });
@@ -282,13 +448,12 @@ export function NewTabPage() {
   }
 
   function toggleSelectionMode() {
-    setIsSelectionMode((currentMode) => {
-      if (currentMode) {
-        clearSelection();
-      }
+    if (selectionModeRegion === "bookmarks") {
+      clearSelection();
+      return;
+    }
 
-      return !currentMode;
-    });
+    activateSelectionRegion("bookmarks");
   }
 
   function clearSelection() {
@@ -296,9 +461,44 @@ export function NewTabPage() {
     setLastSelectedBookmarkId(null);
     setLastSelectedFolderId(null);
     setMoveTargetFolderId("");
+    setSelectionModeRegion(null);
+    lastSelectionRegionRef.current = null;
+  }
+
+  function activateSelectionRegion(region: SelectionRegion, keepCurrentRegionKeys = true) {
+    setSelectionModeRegion(region);
+    lastSelectionRegionRef.current = region;
+    setSelectedItemKeys((currentKeys) =>
+      keepCurrentRegionKeys ? filterSelectionKeysForRegion(currentKeys, region) : new Set()
+    );
+  }
+
+  function handleSelectionPointerDown(region: SelectionRegion, event: ReactPointerEvent<HTMLElement>) {
+    if (event.button !== 0 || shouldIgnoreMarqueeStart(event.target)) {
+      return;
+    }
+
+    const hasSelectableItems = region === "folders" ? flatFolders.length > 0 : visibleBookmarks.length > 0;
+
+    if (!hasSelectableItems) {
+      return;
+    }
+
+    event.preventDefault();
+    setContextMenu(null);
+    activateSelectionRegion(region, event.ctrlKey || event.metaKey);
+    setMarqueeSelection({
+      baseKeys: event.ctrlKey || event.metaKey ? filterSelectionKeysForRegion(selectedItemKeys, region) : new Set(),
+      currentX: event.clientX,
+      currentY: event.clientY,
+      originX: event.clientX,
+      originY: event.clientY,
+      region
+    });
   }
 
   function handleSelectBookmark(bookmark: BookmarkItem, event: MouseEvent<HTMLElement>) {
+    activateSelectionRegion("bookmarks", event.ctrlKey || event.metaKey || event.shiftKey);
     updateSelection({
       event,
       item: { id: bookmark.id, type: "bookmark" },
@@ -307,10 +507,10 @@ export function NewTabPage() {
       setLastId: setLastSelectedBookmarkId,
       setSelectedItemKeys
     });
-    setIsSelectionMode(true);
   }
 
   function handleSelectFolder(folder: FolderItem, event: MouseEvent<HTMLElement>) {
+    activateSelectionRegion("folders", event.ctrlKey || event.metaKey || event.shiftKey);
     updateSelection({
       event,
       item: { id: folder.id, type: "folder" },
@@ -319,7 +519,6 @@ export function NewTabPage() {
       setLastId: setLastSelectedFolderId,
       setSelectedItemKeys
     });
-    setIsSelectionMode(true);
   }
 
   async function handleEditorSubmit() {
@@ -437,7 +636,6 @@ export function NewTabPage() {
 
       await refreshBookmarks();
       clearSelection();
-      setIsSelectionMode(false);
       setUndoState({
         label: messages.newTab.undo.deleteComplete(itemsToDelete.length),
         snapshots,
@@ -481,6 +679,49 @@ export function NewTabPage() {
     }
   }
 
+  async function copyItems(items: OrganizationItemRef[], targetParentId?: string, targetIndex?: number) {
+    const copyableItems = pruneNestedSelections(
+      items.filter((item) => canMoveItem(item, targetParentId, folders)),
+      folders
+    );
+
+    if (!targetParentId || !copyableItems.length) {
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+      const copiedItems: OrganizationItemRef[] = [];
+
+      for (const item of copyableItems) {
+        const copiedNode = await copyBookmarkNode({
+          id: item.id,
+          index: targetIndex,
+          parentId: targetParentId
+        });
+
+        if (copiedNode) {
+          copiedItems.push({
+            id: copiedNode.id,
+            parentId: copiedNode.parentId,
+            type: item.type
+          });
+        }
+      }
+
+      await refreshBookmarks();
+      setUndoState({
+        entries: copiedItems,
+        label: messages.newTab.undo.copyComplete(copiedItems.length),
+        type: "copy"
+      });
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : messages.newTab.editor.saveError);
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
   async function handleMoveSelectedToFolder() {
     if (!moveTargetFolderId || !selectedItems.length) {
       return;
@@ -488,6 +729,107 @@ export function NewTabPage() {
 
     await moveItems(selectedItems, moveTargetFolderId);
     clearSelection();
+  }
+
+  async function handleCopySelectedToFolder() {
+    if (!moveTargetFolderId || !selectedItems.length) {
+      return;
+    }
+
+    await copyItems(selectedItems, moveTargetFolderId);
+    clearSelection();
+  }
+
+  function handleBookmarkContextMenu(bookmark: BookmarkItem, event: MouseEvent<HTMLElement>) {
+    event.preventDefault();
+    setContextMenu({
+      item: {
+        id: bookmark.id,
+        index: bookmark.index,
+        parentId: bookmark.parentId,
+        type: "bookmark"
+      },
+      label: bookmark.title,
+      x: event.clientX,
+      y: event.clientY
+    });
+  }
+
+  function handleFolderContextMenu(folder: FolderItem, event: MouseEvent<HTMLElement>) {
+    event.preventDefault();
+    setContextMenu({
+      item: {
+        id: folder.id,
+        index: folder.index,
+        parentId: folder.parentId,
+        type: "folder"
+      },
+      label: folder.label,
+      x: event.clientX,
+      y: event.clientY
+    });
+  }
+
+  function handleContextMenuEdit() {
+    if (!contextMenu) {
+      return;
+    }
+
+    if (contextMenu.item.type === "folder") {
+      const folder = flatFolders.find((item) => item.id === contextMenu.item.id);
+
+      if (folder) {
+        openEditFolder(folder);
+      }
+    } else {
+      const bookmark = bookmarks.find((item) => item.id === contextMenu.item.id);
+
+      if (bookmark) {
+        openEditBookmark(bookmark);
+      }
+    }
+
+    setContextMenu(null);
+  }
+
+  function handleContextMenuDelete() {
+    if (!contextMenu) {
+      return;
+    }
+
+    if (contextMenu.item.type === "folder") {
+      const folder = flatFolders.find((item) => item.id === contextMenu.item.id);
+
+      if (folder) {
+        void handleDeleteFolder(folder);
+      }
+    } else {
+      const bookmark = bookmarks.find((item) => item.id === contextMenu.item.id);
+
+      if (bookmark) {
+        void handleDeleteBookmark(bookmark);
+      }
+    }
+
+    setContextMenu(null);
+  }
+
+  function handleContextMenuMove(targetFolderId: string) {
+    if (!contextMenu) {
+      return;
+    }
+
+    void moveItems([contextMenu.item], targetFolderId);
+    setContextMenu(null);
+  }
+
+  function handleContextMenuCopy(targetFolderId: string) {
+    if (!contextMenu) {
+      return;
+    }
+
+    void copyItems([contextMenu.item], targetFolderId);
+    setContextMenu(null);
   }
 
   function handleBookmarkDragStart(bookmark: BookmarkItem, event: DragEvent<HTMLElement>) {
@@ -551,6 +893,14 @@ export function NewTabPage() {
             index: entry.index,
             parentId: entry.parentId
           });
+        }
+      } else if (undoState.type === "copy") {
+        for (const entry of undoState.entries) {
+          if (entry.type === "folder") {
+            await deleteFolder(entry.id);
+          } else {
+            await deleteBookmark(entry.id);
+          }
         }
       } else {
         await restoreBookmarkNodeSnapshots(undoState.snapshots);
@@ -629,6 +979,8 @@ export function NewTabPage() {
       return;
     }
 
+    dismissValidationMessage();
+
     try {
       setIsValidatingUrls(true);
       setValidationMessage(null);
@@ -640,10 +992,18 @@ export function NewTabPage() {
       );
       await refreshBookmarks();
       setValidationMessage(messages.newTab.urlValidation.complete(visibleBookmarks.length));
+      validationMessageTimeoutRef.current = globalThis.setTimeout(() => {
+        setValidationMessage(null);
+        validationMessageTimeoutRef.current = null;
+      }, 3500);
     } catch (error) {
       setValidationMessage(
         error instanceof Error ? error.message : messages.newTab.urlValidation.error
       );
+      validationMessageTimeoutRef.current = globalThis.setTimeout(() => {
+        setValidationMessage(null);
+        validationMessageTimeoutRef.current = null;
+      }, 4500);
     } finally {
       setIsValidatingUrls(false);
     }
@@ -676,20 +1036,16 @@ export function NewTabPage() {
           onDropBeforeFolder={handleDropBeforeFolder}
           onDropOnFolder={handleDropOnFolder}
           onEditFolder={openEditFolder}
+          onFolderContextMenu={handleFolderContextMenu}
           onSelectFolder={setSelectedFolderId}
           onSelectFolderItem={handleSelectFolder}
-          profileSubtitle={messages.newTab.sidebar.profileSubtitle}
-          profileTitle={messages.newTab.sidebar.profileTitle}
+          onSelectionPointerDown={(event) => handleSelectionPointerDown("folders", event)}
+          selectionContainerRef={sidebarSelectionRef}
           selectedItemKeys={selectedItemKeys}
           selectedFolderId={selectedFolderId}
-          selectionMode={isSelectionMode}
+          selectionMode={isFolderSelectionMode}
           onOpenSettings={() => setIsSettingsOpen(true)}
           settingsLabel={messages.settings.openButton}
-          statusLabel={
-            errorMessage
-              ? messages.newTab.sidebar.statusAccessNeeded
-              : messages.newTab.sidebar.statusLive
-          }
         />
       }
       topSearch={
@@ -701,7 +1057,11 @@ export function NewTabPage() {
         />
       }
     >
-      <section className="content-section">
+      <section
+        className="content-section"
+        onPointerDown={(event) => handleSelectionPointerDown("bookmarks", event)}
+        ref={contentSelectionRef}
+      >
         <Breadcrumbs
           items={currentBreadcrumb}
           label={messages.newTab.breadcrumbLabel}
@@ -712,8 +1072,8 @@ export function NewTabPage() {
             <h2>{query ? messages.newTab.gridSearchTitle : messages.newTab.gridFolderTitle}</h2>
           </div>
           <div className="section-title-row__actions">
-            <Button icon="check" onClick={toggleSelectionMode} variant={isSelectionMode ? "primary" : "glass"}>
-              {isSelectionMode ? messages.newTab.selection.done : messages.newTab.selection.select}
+            <Button icon="check" onClick={toggleSelectionMode} variant={isBookmarkSelectionMode ? "primary" : "glass"}>
+              {isBookmarkSelectionMode ? messages.newTab.selection.done : messages.newTab.selection.select}
             </Button>
             <Button
               disabled={isValidatingUrls || !visibleBookmarks.length}
@@ -723,16 +1083,12 @@ export function NewTabPage() {
             >
               {isValidatingUrls ? messages.newTab.urlValidation.checking : messages.newTab.urlValidation.check}
             </Button>
-            <Button icon="sliders" variant="glass">
-              {messages.newTab.folderPaths}
-            </Button>
             <Button icon="folderAdd" onClick={openCreateFolder} variant="glass">
               {messages.newTab.addFolder}
             </Button>
           </div>
         </div>
-        {validationMessage ? <p className="validation-feedback">{validationMessage}</p> : null}
-        {isSelectionMode || hasSelectedItems ? (
+        {selectionModeRegion || hasSelectedItems ? (
           <div className="bulk-toolbar">
             <span>{messages.newTab.selection.selectedCount(selectedItems.length)}</span>
             <select
@@ -751,6 +1107,9 @@ export function NewTabPage() {
             <Button disabled={!hasSelectedItems || !moveTargetFolderId || isSaving} icon="folderOpen" onClick={handleMoveSelectedToFolder} variant="glass">
               {messages.newTab.selection.moveTo}
             </Button>
+            <Button disabled={!hasSelectedItems || !moveTargetFolderId || isSaving} icon="copy" onClick={handleCopySelectedToFolder} variant="glass">
+              {messages.newTab.selection.copyTo}
+            </Button>
             <Button disabled={!hasSelectedItems || isSaving} icon="trash" onClick={handleBulkDelete} variant="glass">
               {messages.newTab.selection.delete}
             </Button>
@@ -759,15 +1118,6 @@ export function NewTabPage() {
             </Button>
           </div>
         ) : null}
-        {undoState ? (
-          <div className="undo-banner">
-            <span>{undoState.label}</span>
-            <Button disabled={isSaving} icon="refresh" onClick={handleUndo} variant="glass">
-              {messages.newTab.undo.action}
-            </Button>
-          </div>
-        ) : null}
-        {suggestionMessage ? <p className="validation-feedback">{suggestionMessage}</p> : null}
         {suggestionBatch ? (
           <section className="llm-review-panel" aria-label={messages.newTab.llm.reviewTitle}>
             <div className="llm-review-panel__heading">
@@ -834,12 +1184,13 @@ export function NewTabPage() {
                 bookmark={bookmark}
                 isSelected={selectedItemKeys.has(`bookmark:${bookmark.id}`)}
                 key={bookmark.id}
+                onContextMenu={handleBookmarkContextMenu}
                 onDelete={handleDeleteBookmark}
                 onDragStart={handleBookmarkDragStart}
                 onDropBefore={handleDropBeforeBookmark}
                 onEdit={openEditBookmark}
                 onSelect={handleSelectBookmark}
-                selectionMode={isSelectionMode}
+                selectionMode={isBookmarkSelectionMode}
               />
             ))}
           </div>
@@ -868,9 +1219,264 @@ export function NewTabPage() {
         />
       ) : null}
       {isSettingsOpen ? (
-        <SettingsModal onClose={() => setIsSettingsOpen(false)} selectedBookmarkCount={selectedBookmarks.length} />
+        <SettingsModal folders={folders} onClose={() => setIsSettingsOpen(false)} />
+      ) : null}
+      {marqueeSelection ? (
+        <div className="selection-marquee" style={getMarqueeStyle(marqueeSelection)} />
+      ) : null}
+      {validationMessage || suggestionMessage || undoState ? (
+        <div aria-live="polite" className="feedback-toast-stack">
+          {validationMessage ? (
+            <article className="feedback-toast" role="status">
+              <div className="feedback-toast__message">
+                <Icon name="shield" size={18} />
+                <span>{validationMessage}</span>
+              </div>
+              <Button
+                aria-label={messages.newTab.feedback.close}
+                className="feedback-toast__close"
+                icon="x"
+                onClick={dismissValidationMessage}
+                variant="icon"
+              />
+            </article>
+          ) : null}
+          {suggestionMessage ? (
+            <article className="feedback-toast" role="status">
+              <div className="feedback-toast__message">
+                <Icon name="sparkles" size={18} />
+                <span>{suggestionMessage}</span>
+              </div>
+              <Button
+                aria-label={messages.newTab.feedback.close}
+                className="feedback-toast__close"
+                icon="x"
+                onClick={dismissSuggestionMessage}
+                variant="icon"
+              />
+            </article>
+          ) : null}
+          {undoState ? (
+            <article className="feedback-toast feedback-toast--undo" role="status">
+              <div className="feedback-toast__message">
+                <Icon name="refresh" size={18} />
+                <span>{undoState.label}</span>
+              </div>
+              <div className="feedback-toast__actions">
+                <Button disabled={isSaving} icon="refresh" onClick={handleUndo} variant="glass">
+                  {messages.newTab.undo.action}
+                </Button>
+                <Button
+                  aria-label={messages.newTab.feedback.close}
+                  className="feedback-toast__close"
+                  icon="x"
+                  onClick={() => setUndoState(null)}
+                  variant="icon"
+                />
+              </div>
+            </article>
+          ) : null}
+        </div>
+      ) : null}
+      {contextMenu ? (
+        <div
+          className="context-menu"
+          role="menu"
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+          onContextMenu={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+          }}
+          onClick={(event) => event.stopPropagation()}
+          onWheel={(event) => event.stopPropagation()}
+        >
+          <div className="context-menu__label">{contextMenu.label}</div>
+          <button disabled={isSaving} onClick={handleContextMenuEdit} role="menuitem" type="button">
+            <Icon name="pencil" size={15} />
+            <span>
+              {contextMenu.item.type === "folder"
+                ? messages.newTab.contextMenu.renameFolder
+                : messages.newTab.contextMenu.renameBookmark}
+            </span>
+          </button>
+          <button disabled={isSaving} onClick={handleContextMenuDelete} role="menuitem" type="button">
+            <Icon name="trash" size={15} />
+            <span>{messages.newTab.contextMenu.delete}</span>
+          </button>
+          <div className="context-menu__submenu">
+            <button className="context-menu__submenu-trigger" disabled={isSaving} role="menuitem" type="button">
+              <Icon name="folderOpen" size={15} />
+              <span>{messages.newTab.contextMenu.moveTo}</span>
+              <Icon className="context-menu__submenu-icon" name="chevronRight" size={14} />
+            </button>
+            <div className="context-menu__submenu-panel" role="menu">
+              {contextMenuTargetFolders.map((folder) => (
+                <button
+                  disabled={isSaving}
+                  key={`move-${folder.id}`}
+                  onClick={() => handleContextMenuMove(folder.id)}
+                  role="menuitem"
+                  type="button"
+                >
+                  <Icon name="folderOpen" size={15} />
+                  <span>{folder.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="context-menu__submenu">
+            <button className="context-menu__submenu-trigger" disabled={isSaving} role="menuitem" type="button">
+              <Icon name="copy" size={15} />
+              <span>{messages.newTab.contextMenu.copyTo}</span>
+              <Icon className="context-menu__submenu-icon" name="chevronRight" size={14} />
+            </button>
+            <div className="context-menu__submenu-panel" role="menu">
+              {contextMenuTargetFolders.map((folder) => (
+                <button
+                  disabled={isSaving}
+                  key={`copy-${folder.id}`}
+                  onClick={() => handleContextMenuCopy(folder.id)}
+                  role="menuitem"
+                  type="button"
+                >
+                  <Icon name="copy" size={15} />
+                  <span>{folder.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
       ) : null}
     </AppShell>
+  );
+}
+
+function isSelectAllShortcut(event: KeyboardEvent): boolean {
+  return (event.ctrlKey || event.metaKey) && !event.altKey && event.key.toLowerCase() === "a";
+}
+
+function isTextEditingTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
+
+  return (
+    target.isContentEditable ||
+    target.matches("input, textarea, select") ||
+    Boolean(target.closest("[contenteditable='true']"))
+  );
+}
+
+function resolveKeyboardSelectionRegion(
+  target: EventTarget | null,
+  sidebarElement: HTMLElement | null,
+  contentElement: HTMLElement | null,
+  fallbackRegion: SelectionRegion | null
+): SelectionRegion {
+  if (target instanceof Node) {
+    if (sidebarElement?.contains(target)) {
+      return "folders";
+    }
+
+    if (contentElement?.contains(target)) {
+      return "bookmarks";
+    }
+  }
+
+  return fallbackRegion ?? "bookmarks";
+}
+
+function buildSelectAllKeys(
+  region: SelectionRegion,
+  folders: FolderItem[],
+  bookmarks: BookmarkItem[]
+): Set<string> {
+  const keys = new Set<string>();
+
+  if (region === "folders") {
+    folders.forEach((folder) => keys.add(organizationItemKey({ id: folder.id, type: "folder" })));
+  }
+
+  if (region === "bookmarks") {
+    bookmarks.forEach((bookmark) => keys.add(organizationItemKey({ id: bookmark.id, type: "bookmark" })));
+  }
+
+  return keys;
+}
+
+function filterSelectionKeysForRegion(keys: Set<string>, region: SelectionRegion): Set<string> {
+  const prefix = `${region === "folders" ? "folder" : "bookmark"}:`;
+  return new Set([...keys].filter((key) => key.startsWith(prefix)));
+}
+
+function shouldIgnoreMarqueeStart(target: EventTarget | null): boolean {
+  if (!(target instanceof Element)) {
+    return true;
+  }
+
+  return Boolean(
+    target.closest(
+      "a, button, input, label, select, textarea, [contenteditable='true'], [data-selection-key], .bulk-toolbar, .context-menu, .llm-review-panel"
+    )
+  );
+}
+
+function readMarqueeSelectionKeys(
+  selection: MarqueeSelectionState,
+  sidebarElement: HTMLElement | null,
+  contentElement: HTMLElement | null
+): Set<string> {
+  const container = selection.region === "folders" ? sidebarElement : contentElement;
+  const keys = new Set(selection.baseKeys);
+
+  if (!container) {
+    return keys;
+  }
+
+  const marqueeRect = getMarqueeClientRect(selection);
+  const selectableItems = container.querySelectorAll<HTMLElement>(
+    `[data-selection-region="${selection.region}"][data-selection-key]`
+  );
+
+  selectableItems.forEach((item) => {
+    if (doRectsIntersect(marqueeRect, item.getBoundingClientRect())) {
+      const selectionKey = item.dataset.selectionKey;
+
+      if (selectionKey) {
+        keys.add(selectionKey);
+      }
+    }
+  });
+
+  return keys;
+}
+
+function getMarqueeStyle(selection: MarqueeSelectionState): CSSProperties {
+  const rect = getMarqueeClientRect(selection);
+
+  return {
+    height: rect.height,
+    left: rect.left,
+    top: rect.top,
+    width: rect.width
+  };
+}
+
+function getMarqueeClientRect(selection: MarqueeSelectionState): DOMRect {
+  const left = Math.min(selection.originX, selection.currentX);
+  const top = Math.min(selection.originY, selection.currentY);
+  const width = Math.abs(selection.currentX - selection.originX);
+  const height = Math.abs(selection.currentY - selection.originY);
+
+  return new DOMRect(left, top, width, height);
+}
+
+function doRectsIntersect(firstRect: DOMRect, secondRect: DOMRect): boolean {
+  return (
+    firstRect.left <= secondRect.right &&
+    firstRect.right >= secondRect.left &&
+    firstRect.top <= secondRect.bottom &&
+    firstRect.bottom >= secondRect.top
   );
 }
 
@@ -904,10 +1510,8 @@ function updateSelection({
       const end = Math.max(currentIndex, lastIndex);
       const rangeKeys = orderedItems.slice(start, end + 1).map(organizationItemKey);
       setSelectedItemKeys((currentKeys) => {
-        const keys = new Set(currentKeys);
-        for (const rangeKey of rangeKeys) {
-          keys.add(rangeKey);
-        }
+        const keys = event.ctrlKey || event.metaKey ? new Set(currentKeys) : new Set<string>();
+        rangeKeys.forEach((rangeKey) => keys.add(rangeKey));
         return keys;
       });
       return;
@@ -918,8 +1522,10 @@ function updateSelection({
     const keys = new Set(currentKeys);
     if (keys.has(itemKey) && (event.ctrlKey || event.metaKey)) {
       keys.delete(itemKey);
-    } else {
+    } else if (event.ctrlKey || event.metaKey) {
       keys.add(itemKey);
+    } else {
+      return new Set([itemKey]);
     }
     return keys;
   });

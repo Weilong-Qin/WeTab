@@ -9,10 +9,12 @@ import {
   ChevronRight,
   Code2,
   Command,
+  Copy,
   ExternalLink,
   FlaskConical,
   FolderOpen,
   FolderPlus,
+  Info,
   Layers3,
   LayoutGrid,
   Lightbulb,
@@ -44,10 +46,12 @@ export type IconName =
   | "chevronRight"
   | "code"
   | "command"
+  | "copy"
   | "external"
   | "flask"
   | "folderAdd"
   | "folderOpen"
+  | "info"
   | "layers"
   | "layout"
   | "lightbulb"
@@ -77,10 +81,12 @@ const icons: Record<IconName, LucideIcon> = {
   chevronRight: ChevronRight,
   code: Code2,
   command: Command,
+  copy: Copy,
   external: ExternalLink,
   flask: FlaskConical,
   folderAdd: FolderPlus,
   folderOpen: FolderOpen,
+  info: Info,
   layers: Layers3,
   layout: LayoutGrid,
   lightbulb: Lightbulb,
@@ -102,6 +108,7 @@ const icons: Record<IconName, LucideIcon> = {
 
 export interface IconProps extends Omit<LucideProps, "name"> {
   name: IconName;
+  title?: string;
 }
 
 export function Icon({ name, strokeWidth = 1.8, ...props }: IconProps) {

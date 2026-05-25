@@ -1,6 +1,6 @@
 import { Button } from "./Button";
 import { Icon } from "./Icon";
-import { useEffect, useRef, useState, type DragEvent, type MouseEvent } from "react";
+import { useEffect, useRef, useState, type DragEvent, type MouseEvent, type PointerEvent, type Ref } from "react";
 import type { FolderItem } from "../types/bookmarks";
 import { cx } from "../utils/classNames";
 
@@ -26,10 +26,11 @@ export interface SidebarProps {
   onDropBeforeFolder?: (folder: FolderItem, event: DragEvent<HTMLElement>) => void;
   onDropOnFolder?: (folder: FolderItem, event: DragEvent<HTMLElement>) => void;
   onEditFolder?: (folder: FolderItem) => void;
+  onFolderContextMenu?: (folder: FolderItem, event: MouseEvent<HTMLElement>) => void;
+  onSelectionPointerDown?: (event: PointerEvent<HTMLElement>) => void;
   statusLabel?: string;
   onSelectFolderItem?: (folder: FolderItem, event: MouseEvent<HTMLElement>) => void;
-  profileTitle?: string;
-  profileSubtitle?: string;
+  selectionContainerRef?: Ref<HTMLElement>;
   selectedItemKeys?: Set<string>;
   selectionMode?: boolean;
   onOpenSettings?: () => void;
@@ -54,10 +55,10 @@ export function Sidebar({
   onDropBeforeFolder,
   onDropOnFolder,
   onEditFolder,
+  onFolderContextMenu,
+  onSelectionPointerDown,
   onSelectFolderItem,
-  statusLabel = "Sync Status: Live",
-  profileTitle = "Personal Library",
-  profileSubtitle = "Digital Air Space",
+  selectionContainerRef,
   selectedItemKeys = new Set(),
   selectionMode = false,
   onOpenSettings,
@@ -93,17 +94,27 @@ export function Sidebar({
 
   return (
     <div className="sidebar">
-      <div className="sidebar__brand">
-        <div className="sidebar__brand-mark">
-          <Icon name="air" size={19} />
+      <div className="sidebar__brand-row">
+        <div className="sidebar__brand">
+          <div className="sidebar__brand-mark">
+            <Icon name="air" size={19} />
+          </div>
+          <div>
+            <h1>{brandTitle}</h1>
+            <p>{brandSubtitle}</p>
+          </div>
         </div>
-        <div>
-          <h1>{brandTitle}</h1>
-          <p>{brandSubtitle}</p>
-        </div>
+        {onOpenSettings ? (
+          <Button aria-label={settingsLabel} icon="settings" onClick={onOpenSettings} variant="icon" />
+        ) : null}
       </div>
 
-      <nav className="sidebar__nav" aria-label={navLabel}>
+      <nav
+        aria-label={navLabel}
+        className="sidebar__nav"
+        onPointerDown={onSelectionPointerDown}
+        ref={selectionContainerRef}
+      >
         <Button className="sidebar__ai-button" icon="sparkles" onClick={onAction} variant="primary">
           {actionLabel}
         </Button>
@@ -124,6 +135,7 @@ export function Sidebar({
             onDropBeforeFolder={onDropBeforeFolder}
             onDropOnFolder={onDropOnFolder}
             onEditFolder={onEditFolder}
+            onFolderContextMenu={onFolderContextMenu}
             onSelect={onSelectFolder}
             onSelectFolderItem={onSelectFolderItem}
             onToggle={toggleFolder}
@@ -151,6 +163,7 @@ export function Sidebar({
               onDropBeforeFolder={onDropBeforeFolder}
               onDropOnFolder={onDropOnFolder}
               onEditFolder={onEditFolder}
+              onFolderContextMenu={onFolderContextMenu}
               onSelect={onSelectFolder}
               onSelectFolderItem={onSelectFolderItem}
               onToggle={toggleFolder}
@@ -161,25 +174,6 @@ export function Sidebar({
         </div>
       </nav>
 
-      <footer className="sidebar__footer">
-        <div className="sidebar__sync">
-          <span className="sidebar__sync-dot" />
-          <span>{statusLabel}</span>
-          <Icon name="refresh" size={16} />
-        </div>
-        <div className="sidebar__footer-row">
-          <div className="sidebar__profile">
-            <div className="sidebar__avatar">PL</div>
-            <div>
-              <strong>{profileTitle}</strong>
-              <span>{profileSubtitle}</span>
-            </div>
-          </div>
-          {onOpenSettings ? (
-            <Button aria-label={settingsLabel} icon="settings" onClick={onOpenSettings} variant="icon" />
-          ) : null}
-        </div>
-      </footer>
     </div>
   );
 }
@@ -203,6 +197,7 @@ interface SidebarItemProps {
   onDropBeforeFolder?: (folder: FolderItem, event: DragEvent<HTMLElement>) => void;
   onDropOnFolder?: (folder: FolderItem, event: DragEvent<HTMLElement>) => void;
   onEditFolder?: (folder: FolderItem) => void;
+  onFolderContextMenu?: (folder: FolderItem, event: MouseEvent<HTMLElement>) => void;
   onSelect: (id: string) => void;
   onSelectFolderItem?: (folder: FolderItem, event: MouseEvent<HTMLElement>) => void;
   onToggle: (id: string) => void;
@@ -225,6 +220,7 @@ function SidebarItem({
   onDropBeforeFolder,
   onDropOnFolder,
   onEditFolder,
+  onFolderContextMenu,
   onSelect,
   onSelectFolderItem,
   onToggle,
@@ -233,6 +229,7 @@ function SidebarItem({
 }: SidebarItemProps) {
   const hasChildren = Boolean(folder.children?.length);
   const isSyntheticRoot = folder.id === "all";
+  const [isDropTarget, setIsDropTarget] = useState(false);
 
   function handleSelectClick(event: MouseEvent<HTMLElement>) {
     if (!selectionMode && !event.ctrlKey && !event.metaKey && !event.shiftKey) {
@@ -251,11 +248,30 @@ function SidebarItem({
   return (
     <div className="sidebar-item-wrap">
       <div
-        className={cx("sidebar-item", isActive && "sidebar-item--active", isSelected && "sidebar-item--selected")}
+        className={cx(
+          "sidebar-item",
+          isActive && "sidebar-item--active",
+          isSelected && "sidebar-item--selected",
+          isDropTarget && "sidebar-item--drop-target"
+        )}
+        data-selection-key={isSyntheticRoot ? undefined : `folder:${folder.id}`}
+        data-selection-region={isSyntheticRoot ? undefined : "folders"}
         draggable={!isSyntheticRoot && Boolean(onDragFolderStart)}
+        onDragEnter={(event) => {
+          if (!isSyntheticRoot && (onDropBeforeFolder || onDropOnFolder)) {
+            event.preventDefault();
+            setIsDropTarget(true);
+          }
+        }}
+        onDragLeave={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+            setIsDropTarget(false);
+          }
+        }}
         onDragOver={(event) => {
           if (!isSyntheticRoot && (onDropBeforeFolder || onDropOnFolder)) {
             event.preventDefault();
+            setIsDropTarget(true);
           }
         }}
         onDragStart={(event) => {
@@ -264,8 +280,16 @@ function SidebarItem({
           }
         }}
         onDrop={(event) => {
+          setIsDropTarget(false);
+
           if (!isSyntheticRoot) {
             onDropOnFolder?.(folder, event);
+          }
+        }}
+        onDragEnd={() => setIsDropTarget(false)}
+        onContextMenu={(event) => {
+          if (!isSyntheticRoot) {
+            onFolderContextMenu?.(folder, event);
           }
         }}
       >
@@ -289,9 +313,7 @@ function SidebarItem({
         ) : folder.id === "all" ? (
           <span className="sidebar-item__toggle-placeholder" />
         ) : (
-          <span className="sidebar-item__toggle-placeholder">
-            <Icon name="chevronRight" size={16} />
-          </span>
+          <span className="sidebar-item__toggle-placeholder" />
         )}
         <button
           aria-current={isActive ? "page" : undefined}
@@ -352,6 +374,7 @@ function SidebarItem({
               onDropBeforeFolder={onDropBeforeFolder}
               onDropOnFolder={onDropOnFolder}
               onEditFolder={onEditFolder}
+              onFolderContextMenu={onFolderContextMenu}
               onSelect={onSelect}
               onSelectFolderItem={onSelectFolderItem}
               onToggle={onToggle}

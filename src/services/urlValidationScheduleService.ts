@@ -12,7 +12,7 @@ const URL_VALIDATION_SCHEDULE_STORAGE_KEY = "vtab.urlValidationSchedule";
 export const DEFAULT_URL_VALIDATION_SCHEDULE_CONFIG: UrlValidationScheduleConfig = {
   enabled: false,
   intervalMinutes: 60,
-  scope: "selected"
+  scope: "all"
 };
 
 const VALID_INTERVAL_MINUTES: UrlValidationScheduleIntervalMinutes[] = [15, 60, 360, 1440];
@@ -27,7 +27,8 @@ export function normalizeUrlValidationScheduleConfig(value: unknown): UrlValidat
   return {
     enabled: typeof maybeConfig.enabled === "boolean" ? maybeConfig.enabled : DEFAULT_URL_VALIDATION_SCHEDULE_CONFIG.enabled,
     intervalMinutes: normalizeIntervalMinutes(maybeConfig.intervalMinutes),
-    scope: normalizeScope(maybeConfig.scope)
+    scope: normalizeScope(maybeConfig.scope),
+    targetFolderId: normalizeTargetFolderId(maybeConfig.targetFolderId)
   };
 }
 
@@ -75,7 +76,6 @@ export function subscribeToUrlValidationScheduleChanges(
 
 export function buildUrlValidationTargets(
   bookmarks: BookmarkItem[],
-  selectedBookmarkIds: string[],
   config: UrlValidationScheduleConfig
 ): UrlValidationTarget[] {
   if (!config.enabled) {
@@ -85,7 +85,7 @@ export function buildUrlValidationTargets(
   const targetBookmarks =
     config.scope === "all"
       ? bookmarks
-      : bookmarks.filter((bookmark) => selectedBookmarkIds.includes(bookmark.id));
+      : filterBookmarksByFolder(bookmarks, config.targetFolderId);
 
   return targetBookmarks
     .filter((bookmark) => bookmark.url.trim().length > 0)
@@ -97,10 +97,9 @@ export function buildUrlValidationTargets(
 
 export async function runScheduledUrlValidation(
   bookmarks: BookmarkItem[],
-  selectedBookmarkIds: string[],
   config: UrlValidationScheduleConfig
 ): Promise<number> {
-  const targets = buildUrlValidationTargets(bookmarks, selectedBookmarkIds, config);
+  const targets = buildUrlValidationTargets(bookmarks, config);
 
   if (!targets.length) {
     return 0;
@@ -119,7 +118,19 @@ function normalizeIntervalMinutes(value: unknown): UrlValidationScheduleInterval
 }
 
 function normalizeScope(value: unknown): UrlValidationScheduleScope {
-  return value === "all" ? "all" : "selected";
+  return value === "folder" ? "folder" : DEFAULT_URL_VALIDATION_SCHEDULE_CONFIG.scope;
+}
+
+function normalizeTargetFolderId(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim().length > 0 ? value : undefined;
+}
+
+function filterBookmarksByFolder(bookmarks: BookmarkItem[], targetFolderId: string | undefined): BookmarkItem[] {
+  if (!targetFolderId) {
+    return [];
+  }
+
+  return bookmarks.filter((bookmark) => bookmark.folderIdPath.includes(targetFolderId));
 }
 
 function getFallbackStorage(): Storage | undefined {

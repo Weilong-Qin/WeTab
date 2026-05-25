@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type ChangeEvent } from "react";
 import { Button } from "../components/Button";
 import { GlassPanel } from "../components/GlassPanel";
+import { Icon } from "../components/Icon";
 import { Tag } from "../components/Tag";
 import { useI18n } from "../hooks/useI18n";
 import { useThemePreference } from "../hooks/useThemePreference";
@@ -104,10 +105,15 @@ export function OptionsPage() {
 
       <GlassPanel className="settings-panel settings-panel--language">
         <div className="settings-panel__heading">
-          <div>
-            <h2>{messages.options.languageTitle}</h2>
-            <p>{messages.options.languageHelp}</p>
-          </div>
+          <h2 className="settings-panel__title-with-icon">
+            {messages.options.languageTitle}
+            <Icon
+              className="settings-info-icon"
+              name="info"
+              size={16}
+              title={`${messages.options.languageHelp}\n\n${messages.options.languageDescription}`}
+            />
+          </h2>
         </div>
 
         <form className="settings-form settings-form--single">
@@ -123,17 +129,19 @@ export function OptionsPage() {
           </label>
         </form>
 
-        <div className="settings-note">
-          <p>{messages.options.languageDescription}</p>
-        </div>
       </GlassPanel>
 
       <GlassPanel className="settings-panel">
         <div className="settings-panel__heading">
-          <div>
-            <h2>{messages.options.providerTitle}</h2>
-            <p>{messages.options.providerHelp}</p>
-          </div>
+          <h2 className="settings-panel__title-with-icon">
+            {messages.options.providerTitle}
+            <Icon
+              className="settings-info-icon"
+              name="info"
+              size={16}
+              title={`${messages.options.providerHelp}\n\n${messages.options.dataSentTitle}: ${messages.options.dataSentDescription}`}
+            />
+          </h2>
           <Button
             disabled={isTestConnectionDisabled}
             icon="shield"
@@ -184,10 +192,6 @@ export function OptionsPage() {
           </p>
         ) : null}
 
-        <div className="settings-note">
-          <strong>{messages.options.dataSentTitle}</strong>
-          <p>{messages.options.dataSentDescription}</p>
-        </div>
       </GlassPanel>
     </main>
   );
