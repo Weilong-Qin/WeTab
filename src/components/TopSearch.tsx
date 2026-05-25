@@ -30,7 +30,7 @@ export function TopSearch({
 
   return (
     <div className="top-search" role="search">
-      <Icon className="top-search__icon" name="search" size={22} />
+      <Icon className="top-search__icon" name="search" size={16} />
       <input
         ref={inputRef}
         aria-label={ariaLabel}
@@ -41,7 +41,7 @@ export function TopSearch({
         value={value}
       />
       <div className="top-search__keys" aria-hidden="true">
-        <kbd>{navigator.platform.toLowerCase().includes("mac") ? "Cmd" : "Ctrl"}</kbd>
+        <kbd>{navigator.platform.toLowerCase().includes("mac") ? "⌘" : "Ctrl"}</kbd>
         <kbd>K</kbd>
       </div>
     </div>

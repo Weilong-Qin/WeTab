@@ -6,7 +6,6 @@ import { Breadcrumbs } from "../components/Breadcrumbs";
 import { Button } from "../components/Button";
 import { EmptyState } from "../components/EmptyState";
 import { Sidebar } from "../components/Sidebar";
-import { Tag } from "../components/Tag";
 import { TopSearch } from "../components/TopSearch";
 import { useI18n } from "../hooks/useI18n";
 import { SettingsModal } from "../components/SettingsModal";
@@ -702,18 +701,6 @@ export function NewTabPage() {
         />
       }
     >
-      <section className="dashboard-head">
-        <div>
-          <Tag tone="blue">{messages.newTab.heroTag}</Tag>
-          <h2>{messages.newTab.heroTitle}</h2>
-          <p>{messages.newTab.heroDescription}</p>
-        </div>
-        <div className="dashboard-head__stats" aria-label={messages.newTab.bookmarkSummary}>
-          <strong>{bookmarks.length}</strong>
-          <span>{isLoading ? messages.newTab.loadingLinks : messages.newTab.nativeLinks}</span>
-        </div>
-      </section>
-
       <section className="content-section">
         <Breadcrumbs
           items={currentBreadcrumb}
@@ -722,7 +709,6 @@ export function NewTabPage() {
         />
         <div className="section-title-row">
           <div>
-            <p className="eyebrow">{messages.newTab.gridEyebrow}</p>
             <h2>{query ? messages.newTab.gridSearchTitle : messages.newTab.gridFolderTitle}</h2>
           </div>
           <div className="section-title-row__actions">
