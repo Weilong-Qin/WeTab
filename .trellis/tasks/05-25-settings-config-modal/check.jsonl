@@ -1,0 +1,5 @@
+{"file":".trellis/spec/frontend/index.md","reason":"Frontend overview and the checklist of required frontend conventions for this task."}
+{"file":".trellis/spec/frontend/component-guidelines.md","reason":"Reviewer needs the component composition and accessibility conventions for the new modal and settings entry point."}
+{"file":".trellis/spec/frontend/state-management.md","reason":"Reviewer must verify persisted settings use the correct service/storage boundaries."}
+{"file":".trellis/spec/frontend/type-safety.md","reason":"Reviewer must check the new settings types and normalization boundaries."}
+{"file":".trellis/spec/frontend/quality-guidelines.md","reason":"Defines the required validation gates and browser API placement rules for the final review."}

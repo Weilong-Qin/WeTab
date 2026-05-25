@@ -1,0 +1,5 @@
+{"file":".trellis/spec/frontend/index.md","reason":"Frontend overview and the checklist of required frontend conventions for this task."}
+{"file":".trellis/spec/frontend/component-guidelines.md","reason":"Reusable component and modal composition rules for the settings button and dialog."}
+{"file":".trellis/spec/frontend/state-management.md","reason":"Persisted settings should use local services and browser storage patterns."}
+{"file":".trellis/spec/frontend/type-safety.md","reason":"New settings types, unions, and storage normalization need to follow the project's strict typing rules."}
+{"file":".trellis/spec/frontend/quality-guidelines.md","reason":"Defines the required lint, test, typecheck, and build gates for the implementation."}

@@ -35,6 +35,8 @@ Store user preferences in `browser.storage.local` behind a service:
 * `vtab.sidebarWidth` via `layoutPreferenceService.ts`.
 * `vtab.llmConfig` via `llmConfigService.ts`.
 * `vtab.llmSuggestions` via `llmSuggestionService.ts`.
+* `vtab.themePreference` via `themePreferenceService.ts`.
+* `vtab.urlValidationSchedule` via `urlValidationScheduleService.ts`.
 
 Fallback to `localStorage` only for non-extension preview/development contexts where `browser.storage.local` is unavailable.
 
@@ -207,6 +209,78 @@ Correct:
 await validateBookmarkUrls([{ id, url }]);
 const view = await loadBookmarkView(messages.bookmarkView);
 applyBookmarkView(view);
+```
+
+### Scheduled URL validation automation
+
+#### 1. Scope / Trigger
+
+This contract applies when the new-tab page automatically rechecks bookmark URLs on a timer while vTab is open. It exists to persist user preference and run repeatable validation without mutating native bookmark content.
+
+#### 2. Signatures
+
+Scheduled validation belongs in `src/services/urlValidationScheduleService.ts`:
+
+```ts
+type UrlValidationScheduleScope = "selected" | "all"
+
+interface UrlValidationScheduleConfig {
+  enabled: boolean;
+  intervalMinutes: 15 | 60 | 360 | 1440;
+  scope: UrlValidationScheduleScope;
+}
+
+normalizeUrlValidationScheduleConfig(value): UrlValidationScheduleConfig
+loadUrlValidationScheduleConfig(): Promise<UrlValidationScheduleConfig>
+saveUrlValidationScheduleConfig(config): Promise<UrlValidationScheduleConfig>
+subscribeToUrlValidationScheduleChanges(onChange): () => void
+buildUrlValidationTargets(bookmarks, selectedBookmarkIds, config): UrlValidationTarget[]
+runScheduledUrlValidation(bookmarks, selectedBookmarkIds, config): Promise<number>
+```
+
+#### 3. Contracts
+
+* Storage key: `vtab.urlValidationSchedule`.
+* Storage value: `{ enabled: boolean; intervalMinutes: 15 | 60 | 360 | 1440; scope: "selected" | "all" }`.
+* Fallback storage may use `localStorage` in preview/development contexts only.
+* `scope === "selected"` uses the current page selection IDs at runtime; it does not store bookmark IDs in the schedule config.
+* Scheduled validation only runs while the new-tab page is open, because the current implementation uses a page-local timer.
+* After each scheduled run, refresh the bookmark view so persisted validation badges update in the UI.
+
+#### 4. Validation & Error Matrix
+
+* Disabled schedule -> return zero targets and do not call `validateBookmarkUrls()`.
+* `scope === "selected"` with no selected bookmarks -> return zero targets.
+* Invalid stored config -> normalize to the default enabled/interval/scope values.
+* Storage read failure -> return the default schedule config.
+* Storage write failure -> leave the page state unchanged and keep the previous config in storage.
+
+#### 5. Good / Base / Bad Cases
+
+* Good: user enables the schedule in the settings modal, the new-tab page starts a timer, validates the selected or all bookmarks, then refreshes the bookmark view.
+* Base: the schedule is disabled, so the page does not create an interval or trigger background validation.
+* Bad: writing scheduled-check status into native bookmark titles or folders, or assuming the timer survives after the new-tab page is closed.
+
+#### 6. Tests Required
+
+* Unit-test schedule config normalization and storage load/save with mocked `wxt/browser`.
+* Assert invalid stored values normalize to the default schedule config.
+* Assert selected-scope target building uses the current page selection IDs.
+* Assert the scheduled runner returns zero when disabled or when selected scope has no selected bookmarks.
+
+#### 7. Wrong vs Correct
+
+#### Wrong
+
+```ts
+await validateBookmarkUrls(bookmarks.map((bookmark) => ({ id: bookmark.id, url: bookmark.url })));
+```
+
+#### Correct
+
+```ts
+const targets = buildUrlValidationTargets(bookmarks, selectedBookmarkIds, scheduleConfig);
+await validateBookmarkUrls(targets);
 ```
 
 ### LLM provider configuration
