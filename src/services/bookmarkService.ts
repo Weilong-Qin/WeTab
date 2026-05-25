@@ -45,6 +45,12 @@ export interface MoveBookmarkNodeInput {
   index?: number;
 }
 
+export interface CopyBookmarkNodeInput {
+  id: string;
+  parentId?: string;
+  index?: number;
+}
+
 export interface BookmarkNodeSnapshot {
   children?: BookmarkNodeSnapshot[];
   index?: number;
@@ -185,6 +191,21 @@ export async function moveBookmarkNode(input: MoveBookmarkNodeInput): Promise<vo
   });
 }
 
+export async function copyBookmarkNode(input: CopyBookmarkNodeInput): Promise<BrowserBookmarkNode | undefined> {
+  const bookmarkApi = getBookmarkApi();
+  const [node] = await bookmarkApi.getSubTree(input.id);
+
+  if (!node) {
+    return undefined;
+  }
+
+  return createBookmarkNodeFromSnapshot({
+    ...snapshotBookmarkNode(node),
+    index: input.index,
+    parentId: input.parentId
+  });
+}
+
 export async function captureBookmarkNodeSnapshots(nodeIds: string[]): Promise<BookmarkNodeSnapshot[]> {
   const bookmarkApi = getBookmarkApi();
   const snapshots: BookmarkNodeSnapshot[] = [];
@@ -202,7 +223,7 @@ export async function captureBookmarkNodeSnapshots(nodeIds: string[]): Promise<B
 
 export async function restoreBookmarkNodeSnapshots(snapshots: BookmarkNodeSnapshot[]): Promise<void> {
   for (const snapshot of snapshots) {
-    await restoreBookmarkNodeSnapshot(snapshot);
+    await createBookmarkNodeFromSnapshot(snapshot);
   }
 }
 
@@ -400,13 +421,19 @@ function snapshotBookmarkNode(node: BrowserBookmarkNode): BookmarkNodeSnapshot {
   };
 }
 
-async function restoreBookmarkNodeSnapshot(snapshot: BookmarkNodeSnapshot): Promise<void> {
+async function createBookmarkNodeFromSnapshot(snapshot: BookmarkNodeSnapshot): Promise<BrowserBookmarkNode> {
   const bookmarkApi = getBookmarkApi();
   const createDetails: Browser.bookmarks.CreateDetails = {
-    index: snapshot.index,
-    parentId: snapshot.parentId,
     title: snapshot.title
   };
+
+  if (snapshot.parentId) {
+    createDetails.parentId = snapshot.parentId;
+  }
+
+  if (typeof snapshot.index === "number") {
+    createDetails.index = snapshot.index;
+  }
 
   if (snapshot.url) {
     createDetails.url = snapshot.url;
@@ -415,11 +442,13 @@ async function restoreBookmarkNodeSnapshot(snapshot: BookmarkNodeSnapshot): Prom
   const createdNode = await bookmarkApi.create(createDetails);
 
   for (const child of snapshot.children ?? []) {
-    await restoreBookmarkNodeSnapshot({
+    await createBookmarkNodeFromSnapshot({
       ...child,
       parentId: createdNode.id
     });
   }
+
+  return createdNode;
 }
 
 function countDescendantBookmarks(node: BrowserBookmarkNode): number {

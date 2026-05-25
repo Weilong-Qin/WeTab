@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  copyBookmarkNode,
   createBookmark,
   createFolder,
   captureBookmarkNodeSnapshots,
@@ -313,6 +314,79 @@ describe("bookmarkService", () => {
     expect(bookmarkApiMock.move).toHaveBeenCalledWith("3", {
       parentId: "5",
       index: 1
+    });
+  });
+
+  it("copies bookmark nodes through the native bookmark API", async () => {
+    bookmarkApiMock.create.mockResolvedValueOnce({
+      id: "10",
+      parentId: "5",
+      title: "OpenAI Platform",
+      url: "https://platform.openai.com/docs"
+    });
+
+    const copiedNode = await copyBookmarkNode({
+      id: "3",
+      index: 2,
+      parentId: "5"
+    });
+
+    expect(copiedNode).toMatchObject({
+      id: "10",
+      parentId: "5",
+      title: "OpenAI Platform"
+    });
+    expect(bookmarkApiMock.getSubTree).toHaveBeenCalledWith("3");
+    expect(bookmarkApiMock.create).toHaveBeenCalledWith({
+      index: 2,
+      parentId: "5",
+      title: "OpenAI Platform",
+      url: "https://platform.openai.com/docs"
+    });
+  });
+
+  it("copies folder nodes recursively through the native bookmark API", async () => {
+    bookmarkApiMock.create
+      .mockResolvedValueOnce({ id: "10", parentId: "7", title: "Dev" })
+      .mockResolvedValueOnce({
+        id: "11",
+        parentId: "10",
+        title: "OpenAI Platform",
+        url: "https://platform.openai.com/docs"
+      })
+      .mockResolvedValueOnce({
+        id: "12",
+        parentId: "10",
+        title: "TypeScript",
+        url: "https://www.typescriptlang.org/docs/"
+      });
+
+    const copiedNode = await copyBookmarkNode({
+      id: "2",
+      parentId: "7"
+    });
+
+    expect(copiedNode).toMatchObject({
+      id: "10",
+      parentId: "7",
+      title: "Dev"
+    });
+    expect(bookmarkApiMock.getSubTree).toHaveBeenCalledWith("2");
+    expect(bookmarkApiMock.create).toHaveBeenNthCalledWith(1, {
+      parentId: "7",
+      title: "Dev"
+    });
+    expect(bookmarkApiMock.create).toHaveBeenNthCalledWith(2, {
+      index: 0,
+      parentId: "10",
+      title: "OpenAI Platform",
+      url: "https://platform.openai.com/docs"
+    });
+    expect(bookmarkApiMock.create).toHaveBeenNthCalledWith(3, {
+      index: 1,
+      parentId: "10",
+      title: "TypeScript",
+      url: "https://www.typescriptlang.org/docs/"
     });
   });
 
