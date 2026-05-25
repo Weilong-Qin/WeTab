@@ -1001,6 +1001,13 @@ kbd {
   box-shadow: 0 0 0 4px var(--color-focus-ring);
 }
 
+.settings-status {
+  margin: -8px 0 0;
+  color: var(--color-on-surface-variant);
+  font-size: var(--type-label-md-size);
+  font-weight: 650;
+}
+
 .settings-note {
   border-radius: var(--radius-card);
   background: var(--color-surface-container-low);

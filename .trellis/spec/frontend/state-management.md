@@ -33,6 +33,7 @@ Store user preferences in `browser.storage.local` behind a service:
 
 * `vtab.language` via `languageService.ts`.
 * `vtab.sidebarWidth` via `layoutPreferenceService.ts`.
+* `vtab.llmConfig` via `llmConfigService.ts`.
 
 Fallback to `localStorage` only for non-extension preview/development contexts where `browser.storage.local` is unavailable.
 
@@ -170,6 +171,77 @@ Correct:
 await validateBookmarkUrls([{ id, url }]);
 const view = await loadBookmarkView(messages.bookmarkView);
 applyBookmarkView(view);
+```
+
+### LLM provider configuration
+
+#### 1. Scope / Trigger
+
+This contract applies when the options page reads or writes OpenAI-compatible provider settings, and when it explicitly tests provider connectivity. It is extension configuration, not bookmark metadata, and must not send bookmark data during setup.
+
+#### 2. Signatures
+
+LLM configuration belongs in `src/services/llmConfigService.ts`:
+
+```ts
+interface LlmConfig {
+  baseUrl: string;
+  apiKey: string;
+  model: string;
+}
+
+normalizeLlmConfig(value): LlmConfig
+loadLlmConfig(): Promise<LlmConfig>
+saveLlmConfig(config): Promise<LlmConfig>
+subscribeToLlmConfigChanges(onChange): () => void
+testLlmConnection(config, timeoutMs?): Promise<{ ok: boolean; status?: number }>
+```
+
+#### 3. Contracts
+
+* Storage key: `vtab.llmConfig`.
+* Storage value: `{ baseUrl: string; apiKey: string; model: string }`.
+* `baseUrl`, `apiKey`, and `model` are trimmed before persistence.
+* `baseUrl` has trailing slashes removed and must be HTTP or HTTPS; missing or invalid values fall back to `https://api.openai.com/v1`.
+* Missing or blank `model` falls back to the default model.
+* Connection tests call `GET {baseUrl}/models` with `Authorization: Bearer <apiKey>` and no bookmark titles, URLs, folder paths, or bookmark IDs.
+* Connection tests only run from explicit user action. Do not add background or automatic provider pings without a new contract.
+
+#### 4. Validation & Error Matrix
+
+* Missing storage or storage read failure -> return default config.
+* Malformed stored config -> normalize each field and fall back to defaults where needed.
+* Missing API key or model -> do not call `fetch()`; return `{ ok: false }`.
+* Non-2xx provider response -> return `{ ok: false, status }`.
+* Fetch failure or timeout -> return `{ ok: false }`.
+
+#### 5. Good / Base / Bad Cases
+
+* Good: user edits options, UI saves through `saveLlmConfig()`, and a button click runs `testLlmConnection()` against `/models`.
+* Base: stored config is missing or invalid, options page loads default base URL and model with an empty API key.
+* Bad: options page sends bookmark titles or URLs while testing credentials, or calls the provider automatically on page load.
+
+#### 6. Tests Required
+
+* Unit-test config normalization with whitespace, trailing slashes, missing fields, and invalid protocols.
+* Unit-test storage load/save with mocked `wxt/browser` storage.
+* Unit-test connection testing with mocked `fetch`, asserting the `/models` URL and authorization header.
+* Assert no connection request is made when required credentials are missing.
+
+#### 7. Wrong vs Correct
+
+Wrong:
+
+```ts
+await fetch(`${baseUrl}/chat/completions`, {
+  body: JSON.stringify({ bookmarks })
+});
+```
+
+Correct:
+
+```ts
+await testLlmConnection(config);
 ```
 
 ---
