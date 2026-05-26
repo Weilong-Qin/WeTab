@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 9
+- **Total Sessions**: 10
 - **Last Active**: 2026-05-26
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~313 | Active |
+| `journal-1.md` | ~349 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 10 | 2026-05-26 | CI release packaging fixes | `7e578e0`, `bbc30cf`, `a9653c8`, `a4db04c` | `main` |
 | 9 | 2026-05-26 | Frontend performance, E2E, and release automation | `cea084d`, `bf00601`, `66b1388` | `main` |
 | 8 | 2026-05-25 | Bookmark management UI refinements | `3401949`, `0b474b7`, `a2be766` | `master` |
 | 7 | 2026-05-25 | LLM classification suggestions | `f3bf675` | `master` |

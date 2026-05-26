@@ -311,3 +311,39 @@ Removed production E2E mock loading, optimized bookmark rendering and URL valida
 ### Next Steps
 
 - None - task complete
+
+
+## Session 10: CI release packaging fixes
+
+**Date**: 2026-05-26
+**Task**: CI release packaging fixes
+**Branch**: `main`
+
+### Summary
+
+Adjusted the package workflow to run on main, upload hidden WXT zip artifacts reliably, and checkout the repository before publishing GitHub releases.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `7e578e0` | (see git log) |
+| `bbc30cf` | (see git log) |
+| `a9653c8` | (see git log) |
+| `a4db04c` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
