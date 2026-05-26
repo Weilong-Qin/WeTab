@@ -105,6 +105,44 @@ describe("llmConfigService", () => {
     });
   });
 
+  it("waits for an in-flight save before loading settings", async () => {
+    let resolveSave: () => void = () => undefined;
+    const savePromise = new Promise<void>((resolve) => {
+      resolveSave = resolve;
+    });
+    storageMock.set.mockReturnValueOnce(savePromise);
+    storageMock.get.mockResolvedValueOnce({
+      "vtab.llmConfig": {
+        baseUrl: "https://fresh.test/v1",
+        apiKey: "fresh-key",
+        model: "fresh-model"
+      }
+    });
+
+    const pendingSave = saveLlmConfig({
+      baseUrl: "https://fresh.test/v1",
+      apiKey: "fresh-key",
+      model: "fresh-model"
+    });
+    const pendingLoad = loadLlmConfig();
+
+    expect(storageMock.get).not.toHaveBeenCalled();
+
+    resolveSave();
+
+    await expect(pendingSave).resolves.toEqual({
+      baseUrl: "https://fresh.test/v1",
+      apiKey: "fresh-key",
+      model: "fresh-model"
+    });
+    await expect(pendingLoad).resolves.toEqual({
+      baseUrl: "https://fresh.test/v1",
+      apiKey: "fresh-key",
+      model: "fresh-model"
+    });
+    expect(storageMock.get).toHaveBeenCalledWith("vtab.llmConfig");
+  });
+
   it("tests provider connectivity through the models endpoint with only the API key", async () => {
     fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
 

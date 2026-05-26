@@ -2,6 +2,7 @@ import { browser, type Browser } from "wxt/browser";
 
 const LLM_CONFIG_STORAGE_KEY = "vtab.llmConfig";
 const DEFAULT_CONNECTION_TIMEOUT_MS = 10000;
+let pendingLlmConfigSave: Promise<void> | null = null;
 
 export interface LlmConfig {
   baseUrl: string;
@@ -38,6 +39,7 @@ export function normalizeLlmConfig(value: unknown): LlmConfig {
 
 export async function loadLlmConfig(): Promise<LlmConfig> {
   try {
+    await pendingLlmConfigSave;
     const result = await browser.storage.local.get(LLM_CONFIG_STORAGE_KEY);
     return normalizeLlmConfig(result[LLM_CONFIG_STORAGE_KEY]);
   } catch {
@@ -47,7 +49,17 @@ export async function loadLlmConfig(): Promise<LlmConfig> {
 
 export async function saveLlmConfig(config: LlmConfig): Promise<LlmConfig> {
   const normalizedConfig = normalizeLlmConfig(config);
-  await browser.storage.local.set({ [LLM_CONFIG_STORAGE_KEY]: normalizedConfig });
+  const savePromise = browser.storage.local.set({ [LLM_CONFIG_STORAGE_KEY]: normalizedConfig });
+  pendingLlmConfigSave = savePromise;
+
+  try {
+    await savePromise;
+  } finally {
+    if (pendingLlmConfigSave === savePromise) {
+      pendingLlmConfigSave = null;
+    }
+  }
+
   return normalizedConfig;
 }
 
