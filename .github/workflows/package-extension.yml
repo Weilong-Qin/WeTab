@@ -1,0 +1,88 @@
+name: Package Extension
+
+on:
+  push:
+    branches:
+      - master
+    tags:
+      - "v*"
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: package-extension-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  package:
+    name: Validate and package
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run unit tests
+        run: npm run test
+
+      - name: Run lint
+        run: npm run lint
+
+      - name: Run typecheck
+        run: npm run typecheck
+
+      - name: Build extension
+        run: npm run build
+
+      - name: Package extension zip
+        run: npm run zip
+
+      - name: Upload packaged extension
+        uses: actions/upload-artifact@v4
+        with:
+          name: vtab-extension-${{ github.sha }}
+          path: .output/*.zip
+          if-no-files-found: error
+          retention-days: 14
+
+  release:
+    name: Publish release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: package
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download packaged extension
+        uses: actions/download-artifact@v4
+        with:
+          name: vtab-extension-${{ github.sha }}
+          path: release-artifacts
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+
+          if gh release view "$TAG_NAME" >/dev/null 2>&1; then
+            gh release upload "$TAG_NAME" release-artifacts/*.zip --clobber
+          else
+            gh release create "$TAG_NAME" release-artifacts/*.zip --title "$TAG_NAME" --generate-notes
+          fi

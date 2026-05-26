@@ -14,12 +14,6 @@
         "timeout": 30
       }
     ],
-    "beforeSubmitPrompt": [
-      {
-        "command": "python .cursor/hooks/inject-workflow-state.py",
-        "timeout": 15
-      }
-    ],
     "beforeShellExecution": [
       {
         "command": "python .cursor/hooks/inject-shell-session-context.py",

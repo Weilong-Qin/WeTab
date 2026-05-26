@@ -1,6 +1,7 @@
 import { defineConfig } from "wxt";
 
-const isBuild = process.env.npm_lifecycle_event === "build";
+const productionPackageEvents = new Set(["build", "zip"]);
+const isProductionPackage = productionPackageEvents.has(process.env.npm_lifecycle_event ?? "");
 
 export default defineConfig({
   manifestVersion: 3,
@@ -19,5 +20,5 @@ export default defineConfig({
   webExt: {
     disabled: true
   },
-  filterEntrypoints: isBuild ? ["newtab", "options"] : undefined
+  filterEntrypoints: isProductionPackage ? ["newtab", "options"] : undefined
 });

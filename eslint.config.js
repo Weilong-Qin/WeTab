@@ -5,7 +5,16 @@ import tseslint from "typescript-eslint";
 
 export default [
   {
-    ignores: ["node_modules/**", ".wxt/**", ".output/**", "dist/**"]
+    ignores: [
+      "node_modules/**",
+      ".wxt/**",
+      ".output/**",
+      "dist/**",
+      ".agents/skills/**",
+      ".claude/skills/**",
+      ".cursor/skills/**",
+      ".github/skills/**"
+    ]
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,
@@ -32,7 +41,7 @@ export default [
     }
   },
   {
-    files: ["eslint.config.js", "wxt.config.ts"],
+    files: ["eslint.config.js", "playwright.config.ts", "vitest.config.ts", "wxt.config.ts"],
     languageOptions: {
       globals: {
         ...globals.node,
