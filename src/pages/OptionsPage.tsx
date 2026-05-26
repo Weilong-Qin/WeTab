@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ChangeEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { Button } from "../components/Button";
 import { GlassPanel } from "../components/GlassPanel";
 import { Icon } from "../components/Icon";
@@ -17,6 +17,8 @@ import {
 type SaveStatus = "idle" | "saving" | "saved" | "error";
 type TestStatus = "idle" | "testing" | "success" | "error";
 
+const LLM_CONFIG_SAVE_DEBOUNCE_MS = 400;
+
 export function OptionsPage() {
   const { isLanguageLoading, language, languageOptions, messages, setLanguage } = useI18n();
   useThemePreference();
@@ -24,6 +26,9 @@ export function OptionsPage() {
   const [llmConfig, setLlmConfig] = useState<LlmConfig>(DEFAULT_LLM_CONFIG);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [testStatus, setTestStatus] = useState<TestStatus>("idle");
+  const llmConfigSaveTimeoutRef = useRef<ReturnType<typeof globalThis.setTimeout> | null>(null);
+  const llmConfigSaveRequestIdRef = useRef(0);
+  const pendingLlmConfigSaveRef = useRef<LlmConfig | null>(null);
 
   const normalizedLlmConfig = useMemo(() => normalizeLlmConfig(llmConfig), [llmConfig]);
   const isBaseUrlValid = isHttpUrl(llmConfig.baseUrl);
@@ -53,6 +58,21 @@ export function OptionsPage() {
     };
   }, []);
 
+  useEffect(() => {
+    return () => {
+      if (llmConfigSaveTimeoutRef.current !== null) {
+        globalThis.clearTimeout(llmConfigSaveTimeoutRef.current);
+      }
+
+      const pendingConfig = pendingLlmConfigSaveRef.current;
+      pendingLlmConfigSaveRef.current = null;
+
+      if (pendingConfig) {
+        void saveLlmConfig(pendingConfig);
+      }
+    };
+  }, []);
+
   function handleLanguageChange(event: ChangeEvent<HTMLSelectElement>) {
     const nextOption = languageOptions.find((option) => option.code === event.target.value);
 
@@ -71,9 +91,29 @@ export function OptionsPage() {
     setSaveStatus("saving");
     setTestStatus("idle");
 
-    void saveLlmConfig(nextConfig)
-      .then(() => setSaveStatus("saved"))
-      .catch(() => setSaveStatus("error"));
+    if (llmConfigSaveTimeoutRef.current !== null) {
+      globalThis.clearTimeout(llmConfigSaveTimeoutRef.current);
+    }
+
+    const requestId = llmConfigSaveRequestIdRef.current + 1;
+    llmConfigSaveRequestIdRef.current = requestId;
+    pendingLlmConfigSaveRef.current = nextConfig;
+    llmConfigSaveTimeoutRef.current = globalThis.setTimeout(() => {
+      llmConfigSaveTimeoutRef.current = null;
+      pendingLlmConfigSaveRef.current = null;
+
+      void saveLlmConfig(nextConfig)
+        .then(() => {
+          if (llmConfigSaveRequestIdRef.current === requestId) {
+            setSaveStatus("saved");
+          }
+        })
+        .catch(() => {
+          if (llmConfigSaveRequestIdRef.current === requestId) {
+            setSaveStatus("error");
+          }
+        });
+    }, LLM_CONFIG_SAVE_DEBOUNCE_MS);
   }
 
   async function handleTestConnection() {

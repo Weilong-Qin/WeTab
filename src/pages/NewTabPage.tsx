@@ -1,5 +1,6 @@
 import {
   useCallback,
+  useDeferredValue,
   useEffect,
   useMemo,
   useRef,
@@ -109,6 +110,11 @@ interface MarqueeSelectionState {
   region: SelectionRegion;
 }
 
+interface MarqueeSelectableItem {
+  key: string;
+  rect: DOMRect;
+}
+
 const EMPTY_EDITOR_VALUES: BookmarkEditorValues = {
   title: "",
   url: ""
@@ -152,6 +158,10 @@ export function NewTabPage() {
   const validationMessageTimeoutRef = useRef<ReturnType<typeof globalThis.setTimeout> | null>(null);
   const bookmarksRef = useRef<BookmarkItem[]>([]);
   const isScheduledValidationRunningRef = useRef(false);
+  const marqueeSelectionRef = useRef<MarqueeSelectionState | null>(null);
+  const marqueeSelectableItemsRef = useRef<MarqueeSelectableItem[]>([]);
+  const marqueeAnimationFrameRef = useRef<number | null>(null);
+  const deferredQuery = useDeferredValue(query);
 
   useEffect(() => {
     return () => {
@@ -164,6 +174,10 @@ export function NewTabPage() {
   useEffect(() => {
     bookmarksRef.current = bookmarks;
   }, [bookmarks]);
+
+  useEffect(() => {
+    marqueeSelectionRef.current = marqueeSelection;
+  }, [marqueeSelection]);
 
   useEffect(() => {
     if (!contextMenu) {
@@ -267,8 +281,8 @@ export function NewTabPage() {
   }, []);
 
   const visibleBookmarks = useMemo(
-    () => filterBookmarks(bookmarks, query, selectedFolderId),
-    [bookmarks, query, selectedFolderId]
+    () => filterBookmarks(bookmarks, deferredQuery, selectedFolderId),
+    [bookmarks, deferredQuery, selectedFolderId]
   );
   const currentBreadcrumb = useMemo(
     () => findFolderPath(folders, selectedFolderId),
@@ -360,14 +374,26 @@ export function NewTabPage() {
     };
   }, [contextMenu, editorState, flatFolders, isSettingsOpen, visibleBookmarks]);
 
+  const isMarqueeSelecting = marqueeSelection !== null;
+
   useEffect(() => {
-    if (!marqueeSelection) {
+    if (!isMarqueeSelecting) {
       return;
     }
 
-    const activeSelection = marqueeSelection;
+    function applyMarqueeSelection(selection: MarqueeSelectionState) {
+      setMarqueeSelection(selection);
+      setSelectedItemKeys(readMarqueeSelectionKeys(selection, marqueeSelectableItemsRef.current));
+      marqueeAnimationFrameRef.current = null;
+    }
 
     function handlePointerMove(event: PointerEvent) {
+      const activeSelection = marqueeSelectionRef.current;
+
+      if (!activeSelection) {
+        return;
+      }
+
       const nextSelection: MarqueeSelectionState = {
         baseKeys: activeSelection.baseKeys,
         currentX: event.clientX,
@@ -377,12 +403,36 @@ export function NewTabPage() {
         region: activeSelection.region
       };
 
-      setMarqueeSelection(nextSelection);
-      setSelectedItemKeys(readMarqueeSelectionKeys(nextSelection, sidebarSelectionRef.current, contentSelectionRef.current));
+      marqueeSelectionRef.current = nextSelection;
+
+      if (marqueeAnimationFrameRef.current !== null) {
+        return;
+      }
+
+      marqueeAnimationFrameRef.current = window.requestAnimationFrame(() => {
+        const pendingSelection = marqueeSelectionRef.current;
+
+        if (pendingSelection) {
+          applyMarqueeSelection(pendingSelection);
+        }
+      });
     }
 
     function handlePointerUp() {
+      if (marqueeAnimationFrameRef.current !== null) {
+        window.cancelAnimationFrame(marqueeAnimationFrameRef.current);
+        marqueeAnimationFrameRef.current = null;
+      }
+
+      const activeSelection = marqueeSelectionRef.current;
+
+      if (activeSelection) {
+        setSelectedItemKeys(readMarqueeSelectionKeys(activeSelection, marqueeSelectableItemsRef.current));
+      }
+
       setMarqueeSelection(null);
+      marqueeSelectionRef.current = null;
+      marqueeSelectableItemsRef.current = [];
     }
 
     window.addEventListener("pointermove", handlePointerMove);
@@ -393,8 +443,13 @@ export function NewTabPage() {
       window.removeEventListener("pointermove", handlePointerMove);
       window.removeEventListener("pointerup", handlePointerUp);
       window.removeEventListener("pointercancel", handlePointerUp);
+
+      if (marqueeAnimationFrameRef.current !== null) {
+        window.cancelAnimationFrame(marqueeAnimationFrameRef.current);
+        marqueeAnimationFrameRef.current = null;
+      }
     };
-  }, [marqueeSelection]);
+  }, [isMarqueeSelecting]);
 
   useEffect(() => {
     if (!isUrlValidationScheduleEnabled || isUrlValidationScheduleLoading || isLoading) {
@@ -521,14 +576,22 @@ export function NewTabPage() {
     event.preventDefault();
     setContextMenu(null);
     activateSelectionRegion(region, event.ctrlKey || event.metaKey);
-    setMarqueeSelection({
+    const nextSelection: MarqueeSelectionState = {
       baseKeys: event.ctrlKey || event.metaKey ? filterSelectionKeysForRegion(selectedItemKeys, region) : new Set(),
       currentX: event.clientX,
       currentY: event.clientY,
       originX: event.clientX,
       originY: event.clientY,
       region
-    });
+    };
+
+    marqueeSelectableItemsRef.current = collectMarqueeSelectableItems(
+      region,
+      sidebarSelectionRef.current,
+      contentSelectionRef.current
+    );
+    marqueeSelectionRef.current = nextSelection;
+    setMarqueeSelection(nextSelection);
   }
 
   function handleSelectBookmark(bookmark: BookmarkItem, event: MouseEvent<HTMLElement>) {
@@ -1486,32 +1549,41 @@ function shouldIgnoreMarqueeStart(target: EventTarget | null): boolean {
 
 function readMarqueeSelectionKeys(
   selection: MarqueeSelectionState,
-  sidebarElement: HTMLElement | null,
-  contentElement: HTMLElement | null
+  selectableItems: MarqueeSelectableItem[]
 ): Set<string> {
-  const container = selection.region === "folders" ? sidebarElement : contentElement;
   const keys = new Set(selection.baseKeys);
 
-  if (!container) {
-    return keys;
-  }
-
   const marqueeRect = getMarqueeClientRect(selection);
-  const selectableItems = container.querySelectorAll<HTMLElement>(
-    `[data-selection-region="${selection.region}"][data-selection-key]`
-  );
 
   selectableItems.forEach((item) => {
-    if (doRectsIntersect(marqueeRect, item.getBoundingClientRect())) {
-      const selectionKey = item.dataset.selectionKey;
-
-      if (selectionKey) {
-        keys.add(selectionKey);
-      }
+    if (doRectsIntersect(marqueeRect, item.rect)) {
+      keys.add(item.key);
     }
   });
 
   return keys;
+}
+
+function collectMarqueeSelectableItems(
+  region: SelectionRegion,
+  sidebarElement: HTMLElement | null,
+  contentElement: HTMLElement | null
+): MarqueeSelectableItem[] {
+  const container = region === "folders" ? sidebarElement : contentElement;
+
+  if (!container) {
+    return [];
+  }
+
+  return Array.from(
+    container.querySelectorAll<HTMLElement>(
+      `[data-selection-region="${region}"][data-selection-key]`
+    )
+  ).flatMap((item) => {
+    const key = item.dataset.selectionKey;
+
+    return key ? [{ key, rect: item.getBoundingClientRect() }] : [];
+  });
 }
 
 function getMarqueeStyle(selection: MarqueeSelectionState): CSSProperties {

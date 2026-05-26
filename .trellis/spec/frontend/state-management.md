@@ -44,6 +44,8 @@ Fallback to `localStorage` only for non-extension preview/development contexts w
 
 Browser bookmarks are source-of-truth data. Read and subscribe through `bookmarkService.ts`; React components should consume mapped view models only.
 
+Bookmark view models may include derived fields that reduce repeated UI work. `BookmarkItem.searchText` is extension-derived lowercase text for search and must be rebuilt from title, URL, domain, description, and folder path whenever the native bookmark tree is mapped. If a caller supplies sample or legacy bookmarks without `searchText`, `filterBookmarks()` must fall back to deriving the same text at read time.
+
 ### Bookmark write-through management
 
 #### 1. Scope / Trigger
@@ -331,6 +333,7 @@ testLlmConnection(config, timeoutMs?): Promise<{ ok: boolean; status?: number }>
 * `baseUrl`, `apiKey`, and `model` are trimmed before persistence.
 * `baseUrl` has trailing slashes removed and must be HTTP or HTTPS; missing or invalid values fall back to `https://api.openai.com/v1`.
 * Missing or blank `model` falls back to the default model.
+* Options/settings UIs should debounce text-field persistence so every keystroke updates local React state immediately, while storage writes happen after a short idle delay. If the page or modal unmounts with a pending save, flush the pending config to storage before cleanup finishes.
 * Connection tests call `GET {baseUrl}/models` with `Authorization: Bearer <apiKey>` and no bookmark titles, URLs, folder paths, or bookmark IDs.
 * Connection tests only run from explicit user action. Do not add background or automatic provider pings without a new contract.
 

@@ -78,6 +78,8 @@ export function BookmarkCard({
             <img
               alt=""
               className="bookmark-card__favicon"
+              decoding="async"
+              loading="lazy"
               onError={() => setFailedFaviconUrl(faviconImageUrl)}
               src={faviconImageUrl}
             />

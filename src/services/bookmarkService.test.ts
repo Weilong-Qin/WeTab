@@ -217,6 +217,7 @@ describe("bookmarkService", () => {
       domain: "platform.openai.com",
       folderPath: ["Bookmarks Bar", "Dev"],
       folderIdPath: ["1", "2"],
+      searchText: expect.stringContaining("openai platform"),
       status: "unchecked",
       tag: "Dev"
     });

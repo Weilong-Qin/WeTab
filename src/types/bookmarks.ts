@@ -16,6 +16,7 @@ export interface BookmarkItem {
   tag: string;
   tagTone: TagTone;
   iconLabel: string;
+  searchText?: string;
   status: BookmarkStatus;
   accent?: "blue" | "red" | "green" | "amber";
 }

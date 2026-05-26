@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties, type ChangeEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ChangeEvent } from "react";
 import { Button } from "./Button";
 import { GlassPanel } from "./GlassPanel";
 import { Icon } from "./Icon";
@@ -19,6 +19,7 @@ import type { FolderItem } from "../types/bookmarks";
 type SaveStatus = "idle" | "saving" | "saved" | "error";
 type TestStatus = "idle" | "testing" | "success" | "error";
 
+const LLM_CONFIG_SAVE_DEBOUNCE_MS = 400;
 const SCHEDULE_INTERVAL_OPTIONS = [15, 60, 360, 1440] as const;
 
 export interface SettingsModalProps {
@@ -38,6 +39,9 @@ export function SettingsModal({ folders, onClose }: SettingsModalProps) {
   const [llmConfig, setLlmConfig] = useState<LlmConfig>(DEFAULT_LLM_CONFIG);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [testStatus, setTestStatus] = useState<TestStatus>("idle");
+  const llmConfigSaveTimeoutRef = useRef<ReturnType<typeof globalThis.setTimeout> | null>(null);
+  const llmConfigSaveRequestIdRef = useRef(0);
+  const pendingLlmConfigSaveRef = useRef<LlmConfig | null>(null);
 
   const normalizedLlmConfig = useMemo(() => normalizeLlmConfig(llmConfig), [llmConfig]);
   const isBaseUrlValid = isHttpUrl(llmConfig.baseUrl);
@@ -71,6 +75,21 @@ export function SettingsModal({ folders, onClose }: SettingsModalProps) {
     };
   }, []);
 
+  useEffect(() => {
+    return () => {
+      if (llmConfigSaveTimeoutRef.current !== null) {
+        globalThis.clearTimeout(llmConfigSaveTimeoutRef.current);
+      }
+
+      const pendingConfig = pendingLlmConfigSaveRef.current;
+      pendingLlmConfigSaveRef.current = null;
+
+      if (pendingConfig) {
+        void saveLlmConfig(pendingConfig);
+      }
+    };
+  }, []);
+
   function handleLanguageChange(event: ChangeEvent<HTMLSelectElement>) {
     const nextOption = languageOptions.find((option) => option.code === event.target.value);
 
@@ -93,9 +112,29 @@ export function SettingsModal({ folders, onClose }: SettingsModalProps) {
     setSaveStatus("saving");
     setTestStatus("idle");
 
-    void saveLlmConfig(nextConfig)
-      .then(() => setSaveStatus("saved"))
-      .catch(() => setSaveStatus("error"));
+    if (llmConfigSaveTimeoutRef.current !== null) {
+      globalThis.clearTimeout(llmConfigSaveTimeoutRef.current);
+    }
+
+    const requestId = llmConfigSaveRequestIdRef.current + 1;
+    llmConfigSaveRequestIdRef.current = requestId;
+    pendingLlmConfigSaveRef.current = nextConfig;
+    llmConfigSaveTimeoutRef.current = globalThis.setTimeout(() => {
+      llmConfigSaveTimeoutRef.current = null;
+      pendingLlmConfigSaveRef.current = null;
+
+      void saveLlmConfig(nextConfig)
+        .then(() => {
+          if (llmConfigSaveRequestIdRef.current === requestId) {
+            setSaveStatus("saved");
+          }
+        })
+        .catch(() => {
+          if (llmConfigSaveRequestIdRef.current === requestId) {
+            setSaveStatus("error");
+          }
+        });
+    }, LLM_CONFIG_SAVE_DEBOUNCE_MS);
   }
 
   async function handleTestConnection() {

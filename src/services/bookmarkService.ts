@@ -243,16 +243,7 @@ export function filterBookmarks(
   }
 
   return scopedBookmarks.filter((bookmark) => {
-    const haystack = [
-      bookmark.title,
-      bookmark.url,
-      bookmark.domain,
-      bookmark.description,
-      bookmark.folderPath.join(" ")
-    ]
-      .join(" ")
-      .toLowerCase();
-
+    const haystack = bookmark.searchText ?? buildBookmarkSearchText(bookmark);
     return haystack.includes(normalizedQuery);
   });
 }
@@ -406,9 +397,30 @@ function mapBookmarkNode(
     tag: leafFolder,
     tagTone: tagToneForValue(leafFolder),
     iconLabel: iconLabelForBookmark(title, domain),
+    searchText: buildBookmarkSearchText({
+      description: domain ? labels.bookmarkDescription(domain) : url,
+      domain,
+      folderPath: pathLabels,
+      title,
+      url
+    }),
     status: "unchecked",
     accent: accentForValue(node.id)
   };
+}
+
+function buildBookmarkSearchText(
+  bookmark: Pick<BookmarkItem, "description" | "domain" | "folderPath" | "title" | "url">
+): string {
+  return [
+    bookmark.title,
+    bookmark.url,
+    bookmark.domain,
+    bookmark.description,
+    bookmark.folderPath.join(" ")
+  ]
+    .join(" ")
+    .toLowerCase();
 }
 
 function snapshotBookmarkNode(node: BrowserBookmarkNode): BookmarkNodeSnapshot {
