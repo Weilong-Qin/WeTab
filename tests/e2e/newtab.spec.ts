@@ -23,7 +23,7 @@ test("new tab covers navigation, search, settings, and transient link validation
 
   await page.goto(`${entrypointUrls.newtab}${EXTENSION_QUERY}`);
 
-  await expect(page.getByRole("heading", { name: "vTab" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "WeTab" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Open settings" })).toBeVisible();
   await expect(page.getByRole("searchbox", { name: /search bookmarks/i })).toBeVisible();
   await expect(page.getByRole("heading", { name: "OpenAI Platform" })).toBeVisible();

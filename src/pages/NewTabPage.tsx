@@ -1250,7 +1250,13 @@ export function NewTabPage() {
                 <article className="llm-suggestion" key={suggestion.id}>
                   <div>
                     <h4>{resolveSuggestionBookmarkTitle(suggestion, bookmarks)}</h4>
-                    <p>{formatSuggestionTarget(suggestion, folders, messages.newTab.llm.newFolderPrefix)}</p>
+                    <p className="llm-suggestion__folders">
+                      <strong>当前：</strong>
+                      {resolveSuggestionCurrentFolderLabel(suggestion, folders, bookmarks) || "(未分类)"}
+                      {' '}
+                      <strong>→ 建议：</strong>
+                      {formatSuggestionTarget(suggestion, folders, messages.newTab.llm.newFolderPrefix)}
+                    </p>
                     <p>{suggestion.reason}</p>
                   </div>
                   <div className="llm-suggestion__meta">
@@ -1738,6 +1744,26 @@ function pruneNestedSelections(items: OrganizationItemRef[], folders: FolderItem
 
 function resolveSuggestionBookmarkTitle(suggestion: LlmClassificationSuggestion, bookmarks: BookmarkItem[]): string {
   return bookmarks.find((bookmark) => bookmark.id === suggestion.bookmarkId)?.title ?? suggestion.bookmarkId;
+}
+
+function resolveSuggestionCurrentFolderLabel(
+  suggestion: LlmClassificationSuggestion,
+  folders: FolderItem[],
+  bookmarks: BookmarkItem[]
+): string | undefined {
+  // prefer explicit currentFolderId if provided by suggestion
+  if ((suggestion as any).currentFolderId) {
+    const folder = flattenFolders(folders).find((f) => f.id === (suggestion as any).currentFolderId);
+    if (folder) return folder.label;
+  }
+
+  // fallback: derive from bookmark.folderPath
+  const bm = bookmarks.find((b) => b.id === suggestion.bookmarkId);
+  if (bm && Array.isArray(bm.folderPath) && bm.folderPath.length) {
+    return bm.folderPath[bm.folderPath.length - 1];
+  }
+
+  return undefined;
 }
 
 function formatSuggestionTarget(

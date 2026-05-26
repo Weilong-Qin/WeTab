@@ -95,6 +95,7 @@ describe("llmSuggestionService", () => {
         {
           domain: "platform.openai.com",
           folderPath: ["Bookmarks Bar", "Dev"],
+          folderIdPath: ["1", "2"],
           id: "3",
           title: "OpenAI Platform",
           url: "https://platform.openai.com/docs"

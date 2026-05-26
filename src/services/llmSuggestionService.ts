@@ -9,6 +9,7 @@ const DEFAULT_SUGGESTION_TIMEOUT_MS = 20000;
 export interface LlmSuggestionBookmarkInput {
   domain: string;
   folderPath: string[];
+  folderIdPath?: string[];
   id: string;
   title: string;
   url: string;
@@ -29,6 +30,7 @@ export interface LlmClassificationSuggestion {
   confidence: number;
   id: string;
   newFolderName?: string;
+  currentFolderId?: string;
   reason: string;
   status: "pending" | "applied" | "rejected";
   targetFolderId?: string;
@@ -60,6 +62,7 @@ export function buildLlmSuggestionScope(
     bookmarks: bookmarks.map((bookmark) => ({
       domain: bookmark.domain,
       folderPath: bookmark.folderPath,
+      folderIdPath: bookmark.folderIdPath,
       id: bookmark.id,
       title: bookmark.title,
       url: bookmark.url
@@ -191,11 +194,32 @@ function createSuggestionBatch(
   scope: LlmSuggestionRequestScope
 ): LlmSuggestionBatch {
   const rawSuggestions = Array.isArray(rawResponse.suggestions) ? rawResponse.suggestions : [];
+  const bookmarkCurrentFolder = new Map<string, string | undefined>();
+  for (const bm of scope.bookmarks) {
+    // derive current folder id from folderIdPath if available, else undefined
+    bookmarkCurrentFolder.set(bm.id, Array.isArray((bm as any).folderIdPath) && (bm as any).folderIdPath.length
+      ? (bm as any).folderIdPath[(bm as any).folderIdPath.length - 1]
+      : undefined);
+  }
   const bookmarkIds = new Set(scope.bookmarks.map((bookmark) => bookmark.id));
   const folderIds = new Set(scope.folders.map((folder) => folder.id));
   const suggestions = rawSuggestions
     .map((value, index) => normalizeSuggestion(value, index, bookmarkIds, folderIds))
-    .filter((suggestion): suggestion is LlmClassificationSuggestion => Boolean(suggestion));
+    .map((s) => {
+      if (!s) return null;
+      // attach current folder id when available
+      const current = bookmarkCurrentFolder.get(s.bookmarkId);
+      return { ...s, currentFolderId: current } as LlmClassificationSuggestion;
+    })
+    .filter((suggestion): suggestion is LlmClassificationSuggestion => Boolean(suggestion))
+    .filter((suggestion) => {
+      // skip suggestions that target the same folder the bookmark is already in
+      if (!suggestion) return false;
+      if (suggestion.targetFolderId && suggestion.currentFolderId && suggestion.targetFolderId === suggestion.currentFolderId) {
+        return false;
+      }
+      return true;
+    });
 
   return {
     createdAt: Date.now(),
