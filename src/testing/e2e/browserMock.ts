@@ -55,8 +55,10 @@ interface EventMock<Args extends unknown[] = []> {
   removeListener: (listener: Listener<Args>) => void;
 }
 
+const E2E_STORAGE_STATE_KEY = "vtab.e2e.storage.local";
+
 export function installE2eBrowserMock(): BrowserMock {
-  const storageState = new Map<string, unknown>();
+  const storageState = loadPersistedStorageState();
   const onStorageChanged = createEventMock<[Record<string, StorageChange>, string]>();
   const bookmarkEvents = {
     onChanged: createEventMock<[BookmarkNode] | [BookmarkNode, BookmarkNode]>(),
@@ -79,6 +81,7 @@ export function installE2eBrowserMock(): BrowserMock {
       }
 
       storageState.clear();
+      persistStorageState(storageState);
 
       if (Object.keys(changes).length) {
         onStorageChanged.emit(changes, "local");
@@ -120,6 +123,8 @@ export function installE2eBrowserMock(): BrowserMock {
         storageState.delete(key);
       }
 
+      persistStorageState(storageState);
+
       if (Object.keys(changes).length) {
         onStorageChanged.emit(changes, "local");
       }
@@ -132,6 +137,8 @@ export function installE2eBrowserMock(): BrowserMock {
         storageState.set(key, cloneValue(value));
         changes[key] = { oldValue, newValue: cloneValue(value) };
       }
+
+      persistStorageState(storageState);
 
       onStorageChanged.emit(changes, "local");
     }
@@ -364,6 +371,34 @@ function cloneNode(node: BookmarkNode): BookmarkNode {
 
 function cloneValue<T>(value: T): T {
   return value === undefined ? value : JSON.parse(JSON.stringify(value));
+}
+
+function loadPersistedStorageState(): Map<string, unknown> {
+  try {
+    const persistedState = window.localStorage.getItem(E2E_STORAGE_STATE_KEY);
+
+    if (!persistedState) {
+      return new Map<string, unknown>();
+    }
+
+    const parsedState = JSON.parse(persistedState) as Array<[string, unknown]>;
+
+    if (!Array.isArray(parsedState)) {
+      return new Map<string, unknown>();
+    }
+
+    return new Map(parsedState);
+  } catch {
+    return new Map<string, unknown>();
+  }
+}
+
+function persistStorageState(storageState: Map<string, unknown>): void {
+  try {
+    window.localStorage.setItem(E2E_STORAGE_STATE_KEY, JSON.stringify(Array.from(storageState.entries())));
+  } catch {
+    // Ignore storage persistence failures in the e2e harness.
+  }
 }
 
 function createInitialTree(): BookmarkNode[] {

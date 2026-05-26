@@ -19,7 +19,7 @@ export default defineConfig({
     command: "npm run dev",
     reuseExistingServer: true,
     timeout: 120_000,
-    url: "http://localhost:3002/@vite/client"
+    url: "http://localhost:3000/entrypoints/newtab/index.html"
   },
   projects: [
     {
