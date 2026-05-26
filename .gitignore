@@ -3,3 +3,17 @@ node_modules/
 .wxt/
 .output/
 dist/
+test-results/
+playwright-report/
+
+# Local AI skill/plugin installs
+skills-lock.json
+.agents/skills/e2e-testing-patterns/
+.agents/skills/playwright-cli/
+.agents/skills/trellis-spec-bootstarp/
+.claude/skills/e2e-testing-patterns/
+.claude/skills/playwright-cli/
+.claude/skills/trellis-spec-bootstarp/
+.cursor/skills/trellis-spec-bootstarp/
+.github/skills/impeccable/
+.github/skills/trellis-spec-bootstarp/
