@@ -3,6 +3,8 @@ import type { BookmarkItem, BookmarkStatus } from "../types/bookmarks";
 
 const URL_VALIDATION_STORAGE_KEY = "vtab.urlValidationStatus";
 const DEFAULT_TIMEOUT_MS = 6000;
+const DEFAULT_VALIDATION_CONCURRENCY = 6;
+const MAX_VALIDATION_CONCURRENCY = 12;
 
 export interface UrlValidationRecord {
   checkedAt: number;
@@ -17,6 +19,7 @@ export interface UrlValidationTarget {
 }
 
 export interface UrlValidationOptions {
+  concurrency?: number;
   now?: number;
   timeoutMs?: number;
 }
@@ -51,11 +54,14 @@ export async function validateBookmarkUrls(
   const existingStatuses = await loadUrlValidationStatuses();
   const nextStatuses: UrlValidationStatusMap = { ...existingStatuses };
   const checkedAt = options.now ?? Date.now();
+  const concurrency = normalizeValidationConcurrency(options.concurrency);
 
-  for (const target of targets) {
-    nextStatuses[target.id] = {
-      checkedAt,
-      status: await validateUrl(target.url, options)
+  const results = await validateTargetsWithConcurrency(targets, options, checkedAt, concurrency);
+
+  for (const result of results) {
+    nextStatuses[result.id] = {
+      checkedAt: result.checkedAt,
+      status: result.status
     };
   }
 
@@ -117,6 +123,53 @@ function isHttpUrl(url: string): boolean {
   } catch {
     return false;
   }
+}
+
+interface UrlValidationResult {
+  checkedAt: number;
+  id: string;
+  status: BookmarkStatus;
+}
+
+async function validateTargetsWithConcurrency(
+  targets: UrlValidationTarget[],
+  options: UrlValidationOptions,
+  checkedAt: number,
+  concurrency: number
+): Promise<UrlValidationResult[]> {
+  const results: UrlValidationResult[] = [];
+  let nextTargetIndex = 0;
+  const workerCount = Math.min(concurrency, targets.length);
+
+  async function runWorker() {
+    while (nextTargetIndex < targets.length) {
+      const target = targets[nextTargetIndex];
+      nextTargetIndex += 1;
+
+      if (!target) {
+        return;
+      }
+
+      results.push({
+        checkedAt,
+        id: target.id,
+        status: await validateUrl(target.url, options)
+      });
+    }
+  }
+
+  await Promise.all(Array.from({ length: workerCount }, () => runWorker()));
+  return results;
+}
+
+function normalizeValidationConcurrency(value: unknown): number {
+  const parsedValue = typeof value === "number" ? value : Number(value);
+
+  if (!Number.isFinite(parsedValue)) {
+    return DEFAULT_VALIDATION_CONCURRENCY;
+  }
+
+  return Math.min(MAX_VALIDATION_CONCURRENCY, Math.max(1, Math.floor(parsedValue)));
 }
 
 function normalizeStatusMap(value: unknown): UrlValidationStatusMap {

@@ -112,7 +112,7 @@ describe("urlValidationService", () => {
     expect(mappedBookmark?.status).toBe("verified");
   });
 
-  it("validates targets sequentially and persists results by bookmark id", async () => {
+  it("validates targets with persisted results by bookmark id", async () => {
     storageMock.get.mockResolvedValue({
       "vtab.urlValidationStatus": {
         old: { checkedAt: 1, status: "offline" }
@@ -139,4 +139,46 @@ describe("urlValidationService", () => {
       "vtab.urlValidationStatus": statuses
     });
   });
+
+  it("limits concurrent target validation", async () => {
+    const pendingResponses: Array<{
+      resolve: (response: Response) => void;
+    }> = [];
+    fetchMock.mockImplementation(
+      () =>
+        new Promise<Response>((resolve) => {
+          pendingResponses.push({ resolve });
+        })
+    );
+
+    const validation = validateBookmarkUrls(
+      [
+        { id: "1", url: "https://one.test" },
+        { id: "2", url: "https://two.test" },
+        { id: "3", url: "https://three.test" }
+      ],
+      { concurrency: 2, now: 123 }
+    );
+
+    await flushPromises();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+
+    pendingResponses[0]?.resolve(new Response(null, { status: 200 }));
+    await flushPromises();
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+
+    pendingResponses[1]?.resolve(new Response(null, { status: 200 }));
+    pendingResponses[2]?.resolve(new Response(null, { status: 200 }));
+
+    await expect(validation).resolves.toMatchObject({
+      1: { checkedAt: 123, status: "verified" },
+      2: { checkedAt: 123, status: "verified" },
+      3: { checkedAt: 123, status: "verified" }
+    });
+  });
 });
+
+async function flushPromises() {
+  await Promise.resolve();
+  await Promise.resolve();
+}

@@ -165,6 +165,12 @@ saveUrlValidationStatuses(statuses): Promise<void>
 applyUrlValidationStatuses(bookmarks, statuses): BookmarkItem[]
 validateBookmarkUrls(targets, options?): Promise<UrlValidationStatusMap>
 validateUrl(url, options?): Promise<BookmarkStatus>
+
+interface UrlValidationOptions {
+  concurrency?: number // defaults to 6, clamps to 1-12
+  now?: number
+  timeoutMs?: number
+}
 ```
 
 #### 3. Contracts
@@ -174,7 +180,8 @@ validateUrl(url, options?): Promise<BookmarkStatus>
 * Storage value: `Record<bookmarkId, { checkedAt: number; status: "verified" | "offline" | "unchecked" }>`; invalid records are ignored when read.
 * `loadBookmarkView()` must merge persisted validation status into mapped `BookmarkItem.status`.
 * Manual validation checks only the bookmarks in the chosen UI scope. Do not add scheduled/background checks without a new contract.
-* Validation runs conservatively and sequentially for the MVP.
+* Validation runs with conservative finite concurrency to avoid long serial batches while keeping network pressure bounded.
+* Validation concurrency must be bounded and testable; callers may lower it for tests or constrained environments, but should not run unbounded `Promise.all()` over every bookmark.
 
 #### 4. Validation & Error Matrix
 
@@ -198,6 +205,7 @@ validateUrl(url, options?): Promise<BookmarkStatus>
 * Assert reachable `HEAD` responses are `verified`.
 * Assert `HEAD` rejection falls back to `GET`.
 * Assert failures/timeouts/non-HTTP URLs become `offline`.
+* Assert batch validation honors the configured concurrency limit.
 * Assert persisted status loading filters invalid records.
 * Assert batch validation preserves existing records and writes new bookmark statuses by ID.
 
@@ -253,6 +261,7 @@ runScheduledUrlValidation(bookmarks, config): Promise<number>
 * `scope === "folder"` uses `targetFolderId` persisted from the settings modal. It must not depend on transient main-page selection state.
 * Scheduled validation only runs while the new-tab page is open, because the current implementation uses a page-local timer.
 * After each scheduled run, refresh the bookmark view so persisted validation badges update in the UI.
+* The page-local timer should depend on the persisted schedule config and read the latest bookmark list from a ref. Do not include the bookmark array itself in the timer effect dependencies, because scheduled validation refreshes bookmark data after a run and can otherwise immediately retrigger itself.
 
 #### 4. Validation & Error Matrix
 

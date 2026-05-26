@@ -148,6 +148,8 @@ export function NewTabPage() {
   const contentSelectionRef = useRef<HTMLElement | null>(null);
   const lastSelectionRegionRef = useRef<SelectionRegion | null>(null);
   const validationMessageTimeoutRef = useRef<ReturnType<typeof globalThis.setTimeout> | null>(null);
+  const bookmarksRef = useRef<BookmarkItem[]>([]);
+  const isScheduledValidationRunningRef = useRef(false);
 
   useEffect(() => {
     return () => {
@@ -156,6 +158,10 @@ export function NewTabPage() {
       }
     };
   }, []);
+
+  useEffect(() => {
+    bookmarksRef.current = bookmarks;
+  }, [bookmarks]);
 
   useEffect(() => {
     if (!contextMenu) {
@@ -287,6 +293,12 @@ export function NewTabPage() {
   );
   const classificationBookmarks = selectedBookmarks.length ? selectedBookmarks : visibleBookmarks;
   const pendingSuggestions = suggestionBatch?.suggestions.filter((suggestion) => suggestion.status === "pending") ?? [];
+  const {
+    enabled: isUrlValidationScheduleEnabled,
+    intervalMinutes: urlValidationScheduleIntervalMinutes,
+    scope: urlValidationScheduleScope,
+    targetFolderId: urlValidationScheduleTargetFolderId
+  } = urlValidationSchedule;
   const editorLabels = useMemo(() => {
     if (editorState?.intent === "create-folder") {
       return messages.newTab.editor.createFolder;
@@ -383,21 +395,33 @@ export function NewTabPage() {
   }, [marqueeSelection]);
 
   useEffect(() => {
-    if (!urlValidationSchedule.enabled || isUrlValidationScheduleLoading) {
+    if (!isUrlValidationScheduleEnabled || isUrlValidationScheduleLoading || isLoading) {
       return;
     }
 
     let isMounted = true;
 
     async function runValidation() {
-      try {
-        await runScheduledUrlValidation(bookmarks, urlValidationSchedule);
+      if (isScheduledValidationRunningRef.current) {
+        return;
+      }
 
-        if (isMounted) {
+      try {
+        isScheduledValidationRunningRef.current = true;
+        const validatedCount = await runScheduledUrlValidation(bookmarksRef.current, {
+          enabled: isUrlValidationScheduleEnabled,
+          intervalMinutes: urlValidationScheduleIntervalMinutes,
+          scope: urlValidationScheduleScope,
+          targetFolderId: urlValidationScheduleTargetFolderId
+        });
+
+        if (isMounted && validatedCount > 0) {
           await refreshBookmarks();
         }
       } catch {
         return;
+      } finally {
+        isScheduledValidationRunningRef.current = false;
       }
     }
 
@@ -405,13 +429,21 @@ export function NewTabPage() {
 
     const intervalId = globalThis.setInterval(() => {
       void runValidation();
-    }, urlValidationSchedule.intervalMinutes * 60_000);
+    }, urlValidationScheduleIntervalMinutes * 60_000);
 
     return () => {
       isMounted = false;
       globalThis.clearInterval(intervalId);
     };
-  }, [bookmarks, isUrlValidationScheduleLoading, refreshBookmarks, urlValidationSchedule]);
+  }, [
+    isLoading,
+    isUrlValidationScheduleEnabled,
+    isUrlValidationScheduleLoading,
+    refreshBookmarks,
+    urlValidationScheduleIntervalMinutes,
+    urlValidationScheduleScope,
+    urlValidationScheduleTargetFolderId
+  ]);
 
   function openCreateBookmark() {
     setEditorState({ intent: "create-bookmark" });
