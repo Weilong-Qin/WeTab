@@ -1752,8 +1752,8 @@ function resolveSuggestionCurrentFolderLabel(
   bookmarks: BookmarkItem[]
 ): string | undefined {
   // prefer explicit currentFolderId if provided by suggestion
-  if ((suggestion as any).currentFolderId) {
-    const folder = flattenFolders(folders).find((f) => f.id === (suggestion as any).currentFolderId);
+  if (suggestion.currentFolderId) {
+    const folder = flattenFolders(folders).find((f) => f.id === suggestion.currentFolderId);
     if (folder) return folder.label;
   }
 

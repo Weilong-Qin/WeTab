@@ -197,9 +197,10 @@ function createSuggestionBatch(
   const bookmarkCurrentFolder = new Map<string, string | undefined>();
   for (const bm of scope.bookmarks) {
     // derive current folder id from folderIdPath if available, else undefined
-    bookmarkCurrentFolder.set(bm.id, Array.isArray((bm as any).folderIdPath) && (bm as any).folderIdPath.length
-      ? (bm as any).folderIdPath[(bm as any).folderIdPath.length - 1]
-      : undefined);
+    bookmarkCurrentFolder.set(
+      bm.id,
+      Array.isArray(bm.folderIdPath) && bm.folderIdPath.length ? bm.folderIdPath[bm.folderIdPath.length - 1] : undefined
+    );
   }
   const bookmarkIds = new Set(scope.bookmarks.map((bookmark) => bookmark.id));
   const folderIds = new Set(scope.folders.map((folder) => folder.id));
