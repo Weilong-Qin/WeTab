@@ -51,11 +51,14 @@ jobs:
       - name: Package extension zip
         run: npm run zip
 
+      - name: List packaged artifacts
+        run: find .output -type f | sort
+
       - name: Upload packaged extension
         uses: actions/upload-artifact@v4
         with:
           name: vtab-extension-${{ github.sha }}
-          path: .output/*.zip
+          path: .output/**/*.zip
           if-no-files-found: error
           retention-days: 14
 
