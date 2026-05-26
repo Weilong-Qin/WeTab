@@ -115,9 +115,11 @@ export function Sidebar({
         onPointerDown={onSelectionPointerDown}
         ref={selectionContainerRef}
       >
-        <Button className="sidebar__ai-button" icon="sparkles" onClick={onAction} variant="primary">
-          {actionLabel}
-        </Button>
+        {onAction ? (
+          <Button className="sidebar__ai-button" icon="sparkles" onClick={onAction} variant="primary">
+            {actionLabel}
+          </Button>
+        ) : null}
 
         {rootFolder ? (
           <SidebarItem

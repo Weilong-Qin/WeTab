@@ -1021,7 +1021,6 @@ export function NewTabPage() {
       resizeSidebarLabel={messages.appShell.resizeSidebar}
       sidebar={
         <Sidebar
-          actionLabel={isRequestingSuggestions ? messages.newTab.llm.loading : messages.newTab.sidebar.actionLabel}
           actionLabels={messages.newTab.folderActions}
           brandSubtitle={messages.newTab.sidebar.brandSubtitle}
           brandTitle="vTab"
@@ -1030,7 +1029,6 @@ export function NewTabPage() {
           folderSectionLabel={messages.newTab.sidebar.folderSectionLabel}
           folders={folders}
           navLabel={messages.newTab.sidebar.navLabel}
-          onAction={handleRequestSuggestions}
           onDeleteFolder={handleDeleteFolder}
           onDragFolderStart={handleFolderDragStart}
           onDropBeforeFolder={handleDropBeforeFolder}
@@ -1074,6 +1072,14 @@ export function NewTabPage() {
           <div className="section-title-row__actions">
             <Button icon="check" onClick={toggleSelectionMode} variant={isBookmarkSelectionMode ? "primary" : "glass"}>
               {isBookmarkSelectionMode ? messages.newTab.selection.done : messages.newTab.selection.select}
+            </Button>
+            <Button
+              disabled={isRequestingSuggestions || !classificationBookmarks.length}
+              icon="sparkles"
+              onClick={handleRequestSuggestions}
+              variant="glass"
+            >
+              {isRequestingSuggestions ? messages.newTab.llm.loading : messages.newTab.sidebar.actionLabel}
             </Button>
             <Button
               disabled={isValidatingUrls || !visibleBookmarks.length}
