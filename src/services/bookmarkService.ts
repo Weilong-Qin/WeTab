@@ -62,7 +62,7 @@ export interface BookmarkNodeSnapshot {
 const DEFAULT_BOOKMARK_VIEW_LABELS: BookmarkViewLabels = {
   allBookmarksLabel: "All Bookmarks",
   bookmarkAccessUnavailable:
-    "Browser bookmark access is unavailable. Open vTab as the installed extension new-tab page and confirm the bookmarks permission is enabled.",
+    "Browser bookmark access is unavailable. Open WeTab as the installed extension new-tab page and confirm the bookmarks permission is enabled.",
   bookmarkDescription: (domain) => `Saved from ${domain}`,
   defaultBookmarkLabel: "Bookmark",
   defaultFolderLabel: "Bookmarks"

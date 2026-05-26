@@ -16,6 +16,7 @@ import { Breadcrumbs } from "../components/Breadcrumbs";
 import { Button } from "../components/Button";
 import { EmptyState } from "../components/EmptyState";
 import { Icon } from "../components/Icon";
+import { LlmScopeModal, type LlmScopeChoice } from "../components/LlmScopeModal";
 import { Sidebar } from "../components/Sidebar";
 import { TopSearch } from "../components/TopSearch";
 import { useI18n } from "../hooks/useI18n";
@@ -139,6 +140,7 @@ export function NewTabPage() {
   const [moveTargetFolderId, setMoveTargetFolderId] = useState("");
   const [undoState, setUndoState] = useState<UndoState | null>(null);
   const [isRequestingSuggestions, setIsRequestingSuggestions] = useState(false);
+  const [isLlmScopeModalOpen, setIsLlmScopeModalOpen] = useState(false);
   const [suggestionBatch, setSuggestionBatch] = useState<LlmSuggestionBatch | null>(null);
   const [suggestionMessage, setSuggestionMessage] = useState<string | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -291,8 +293,8 @@ export function NewTabPage() {
     () => bookmarks.filter((bookmark) => selectedItemKeys.has(`bookmark:${bookmark.id}`)),
     [bookmarks, selectedItemKeys]
   );
-  const classificationBookmarks = selectedBookmarks.length ? selectedBookmarks : visibleBookmarks;
   const pendingSuggestions = suggestionBatch?.suggestions.filter((suggestion) => suggestion.status === "pending") ?? [];
+  const defaultLlmScope: LlmScopeChoice = selectedBookmarks.length ? "selected" : "visible";
   const {
     enabled: isUrlValidationScheduleEnabled,
     intervalMinutes: urlValidationScheduleIntervalMinutes,
@@ -947,8 +949,19 @@ export function NewTabPage() {
     }
   }
 
-  async function handleRequestSuggestions() {
-    if (!classificationBookmarks.length) {
+  function openLlmScopeModal() {
+    if (!selectedBookmarks.length && !visibleBookmarks.length) {
+      setSuggestionMessage(messages.newTab.llm.noBookmarks);
+      return;
+    }
+
+    setIsLlmScopeModalOpen(true);
+  }
+
+  async function handleRequestSuggestions(scope: LlmScopeChoice) {
+    const scopeBookmarks = scope === "selected" ? selectedBookmarks : visibleBookmarks;
+
+    if (!scopeBookmarks.length) {
       setSuggestionMessage(messages.newTab.llm.noBookmarks);
       return;
     }
@@ -956,8 +969,9 @@ export function NewTabPage() {
     try {
       setIsRequestingSuggestions(true);
       setSuggestionMessage(null);
+      setIsLlmScopeModalOpen(false);
       const batch = await requestLlmClassificationSuggestions(
-        buildLlmSuggestionScope(classificationBookmarks, folders)
+        buildLlmSuggestionScope(scopeBookmarks, folders)
       );
       setSuggestionBatch(batch);
       setSuggestionMessage(messages.newTab.llm.suggestionsReady(batch.suggestions.length));
@@ -1053,14 +1067,18 @@ export function NewTabPage() {
       resizeSidebarLabel={messages.appShell.resizeSidebar}
       sidebar={
         <Sidebar
+          actionDisabled={isRequestingSuggestions || (!selectedBookmarks.length && !visibleBookmarks.length)}
+          actionLabel={isRequestingSuggestions ? messages.newTab.llm.loading : messages.newTab.sidebar.actionLabel}
           actionLabels={messages.newTab.folderActions}
+          actionTitle={messages.newTab.sidebar.actionTitle}
           brandSubtitle={messages.newTab.sidebar.brandSubtitle}
-          brandTitle="vTab"
+          brandTitle="WeTab"
           collapseFolderLabel={messages.newTab.sidebar.collapseFolder}
           expandFolderLabel={messages.newTab.sidebar.expandFolder}
           folderSectionLabel={messages.newTab.sidebar.folderSectionLabel}
           folders={folders}
           navLabel={messages.newTab.sidebar.navLabel}
+          onAction={openLlmScopeModal}
           onDeleteFolder={handleDeleteFolder}
           onDragFolderStart={handleFolderDragStart}
           onDropBeforeFolder={handleDropBeforeFolder}
@@ -1104,14 +1122,6 @@ export function NewTabPage() {
           <div className="section-title-row__actions">
             <Button icon="check" onClick={toggleSelectionMode} variant={isBookmarkSelectionMode ? "primary" : "glass"}>
               {isBookmarkSelectionMode ? messages.newTab.selection.done : messages.newTab.selection.select}
-            </Button>
-            <Button
-              disabled={isRequestingSuggestions || !classificationBookmarks.length}
-              icon="sparkles"
-              onClick={handleRequestSuggestions}
-              variant="glass"
-            >
-              {isRequestingSuggestions ? messages.newTab.llm.loading : messages.newTab.sidebar.actionLabel}
             </Button>
             <Button
               disabled={isValidatingUrls || !visibleBookmarks.length}
@@ -1258,6 +1268,21 @@ export function NewTabPage() {
       ) : null}
       {isSettingsOpen ? (
         <SettingsModal folders={folders} onClose={() => setIsSettingsOpen(false)} />
+      ) : null}
+      {isLlmScopeModalOpen ? (
+        <LlmScopeModal
+          defaultScope={defaultLlmScope}
+          isSubmitting={isRequestingSuggestions}
+          labels={{
+            ...messages.newTab.llm.scope,
+            currentViewDescription: messages.newTab.llm.scope.currentViewDescription(visibleBookmarks.length),
+            selectedDescription: messages.newTab.llm.scope.selectedDescription(selectedBookmarks.length)
+          }}
+          onClose={() => setIsLlmScopeModalOpen(false)}
+          onSubmit={(scope) => void handleRequestSuggestions(scope)}
+          selectedCount={selectedBookmarks.length}
+          visibleCount={visibleBookmarks.length}
+        />
       ) : null}
       {marqueeSelection ? (
         <div className="selection-marquee" style={getMarqueeStyle(marqueeSelection)} />

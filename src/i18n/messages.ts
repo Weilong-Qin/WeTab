@@ -84,6 +84,16 @@ export interface AppMessages {
       noBookmarks: string;
       reject: string;
       reviewTitle: string;
+      scope: {
+        cancel: string;
+        close: string;
+        currentViewDescription: (count: number) => string;
+        currentViewLabel: string;
+        selectedDescription: (count: number) => string;
+        selectedLabel: string;
+        submit: string;
+        title: string;
+      };
       status: {
         applied: string;
         pending: string;
@@ -141,6 +151,7 @@ export interface AppMessages {
     };
     sidebar: {
       actionLabel: string;
+      actionTitle: string;
       brandSubtitle: string;
       collapseFolder: (label: string) => string;
       expandFolder: (label: string) => string;
@@ -240,7 +251,7 @@ export const messages: Record<LanguageCode, AppMessages> = {
     bookmarkView: {
       allBookmarksLabel: "All Bookmarks",
       bookmarkAccessUnavailable:
-        "Browser bookmark access is unavailable. Open vTab as the installed extension new-tab page and confirm the bookmarks permission is enabled.",
+        "Browser bookmark access is unavailable. Open WeTab as the installed extension new-tab page and confirm the bookmarks permission is enabled.",
       bookmarkDescription: (domain) => `Saved from ${domain}`,
       defaultBookmarkLabel: "Bookmark",
       defaultFolderLabel: "Bookmarks"
@@ -250,7 +261,7 @@ export const messages: Record<LanguageCode, AppMessages> = {
       addBookmarkTitle: "Add a bookmark to the selected browser bookmark folder.",
       addFolder: "Add Folder",
       heroTag: "Native Bookmark Library",
-      heroTitle: "vTab turns your browser bookmarks into a searchable homepage.",
+      heroTitle: "WeTab turns your browser bookmarks into a searchable homepage.",
       heroDescription:
         "Browse the folder hierarchy you already maintain in Chrome, search by title, domain, or folder path, and open saved links directly from the new tab.",
       bookmarkSummary: "Bookmark summary",
@@ -261,15 +272,15 @@ export const messages: Record<LanguageCode, AppMessages> = {
       gridSearchTitle: "Search results",
       gridFolderTitle: "Selected folder",
       folderPaths: "Folder paths",
-      reload: "Reload vTab",
-      accessErrorTitle: "vTab cannot read browser bookmarks",
+      reload: "Reload WeTab",
+      accessErrorTitle: "WeTab cannot read browser bookmarks",
       loadingTitle: "Loading bookmarks",
-      loadingDescription: "vTab is reading your native bookmark tree and preparing folder counts.",
+      loadingDescription: "WeTab is reading your native bookmark tree and preparing folder counts.",
       noMatchesTitle: "No matching bookmarks",
       noMatchesDescription: "Try a different search term or choose another bookmark folder from the sidebar.",
       noBookmarksTitle: "No browser bookmarks yet",
       noBookmarksDescription:
-        "Your browser bookmark tree is empty. Add bookmarks in Chrome and vTab will refresh automatically.",
+        "Your browser bookmark tree is empty. Add bookmarks in Chrome and WeTab will refresh automatically.",
       searchPlaceholder: "Search bookmark titles, domains, or folder paths...",
       searchAriaLabel: "Search bookmarks",
       deleteBookmarkConfirm: (title) => `Delete "${title}" from browser bookmarks?`,
@@ -325,6 +336,16 @@ export const messages: Record<LanguageCode, AppMessages> = {
         noBookmarks: "Select bookmarks or open a folder with bookmarks before requesting suggestions.",
         reject: "Reject",
         reviewTitle: "Review classification suggestions",
+        scope: {
+          cancel: "Cancel",
+          close: "Close AI scope selector",
+          currentViewDescription: (count) => `${count} visible bookmark${count === 1 ? "" : "s"} in the current search and folder view.`,
+          currentViewLabel: "Current view",
+          selectedDescription: (count) => `${count} selected bookmark${count === 1 ? "" : "s"}. Use multi-select to narrow this scope.`,
+          selectedLabel: "Selected bookmarks",
+          submit: "Generate suggestions",
+          title: "Choose bookmarks for AI organization"
+        },
         status: {
           applied: "Applied",
           pending: "Pending",
@@ -381,7 +402,8 @@ export const messages: Record<LanguageCode, AppMessages> = {
         close: "Dismiss notification"
       },
       sidebar: {
-        actionLabel: "AI Classify",
+        actionLabel: "AI Organize",
+        actionTitle: "Generate organization suggestions for selected bookmarks or the current view.",
         brandSubtitle: "Bookmark Home",
         collapseFolder: (label) => `Collapse ${label}`,
         expandFolder: (label) => `Expand ${label}`,
@@ -412,21 +434,21 @@ export const messages: Record<LanguageCode, AppMessages> = {
       },
       dataSentTitle: "Data sent for classification",
       dataSentDescription:
-        "vTab may send selected bookmark titles, URLs, and folder paths to the configured provider only when you request suggestions. Suggestions remain reviewable before any browser bookmark changes are written.",
+        "WeTab may send selected bookmark titles, URLs, and folder paths to the configured provider only when you request suggestions. Suggestions remain reviewable before any browser bookmark changes are written.",
       languageTitle: "Language",
       languageHelp: "Stored locally and applied to extension pages.",
       languageLabel: "Display language",
-      languageDescription: "Choose the language used for vTab interface text. Bookmark titles and folder names are left unchanged."
+      languageDescription: "Choose the language used for WeTab interface text. Bookmark titles and folder names are left unchanged."
     },
     settings: {
       openButton: "Open settings",
       title: "Settings",
-      description: "Configure vTab behavior, appearance, and bookmark automation from one place.",
+      description: "Configure WeTab behavior, appearance, and bookmark automation from one place.",
       close: "Close settings",
       languageTitle: "Language",
       languageHelp: "Stored locally and applied across extension pages.",
       languageLabel: "Display language",
-      languageDescription: "Choose the language used for vTab interface text. Bookmark titles and folder names are left unchanged.",
+      languageDescription: "Choose the language used for WeTab interface text. Bookmark titles and folder names are left unchanged.",
       themeTitle: "Theme",
       themeHelp: "Stored locally and applied across extension pages.",
       themeLabel: "Appearance mode",
@@ -454,9 +476,9 @@ export const messages: Record<LanguageCode, AppMessages> = {
       },
       dataSentTitle: "Data sent for classification",
       dataSentDescription:
-        "vTab may send selected bookmark titles, URLs, and folder paths to the configured provider only when you request suggestions. Suggestions remain reviewable before any browser bookmark changes are written.",
+        "WeTab may send selected bookmark titles, URLs, and folder paths to the configured provider only when you request suggestions. Suggestions remain reviewable before any browser bookmark changes are written.",
       scheduleTitle: "Scheduled link checks",
-      scheduleHelp: "Automatically recheck bookmark links while vTab is open.",
+      scheduleHelp: "Automatically recheck bookmark links while WeTab is open.",
       scheduleEnabledLabel: "Enable scheduled checks",
       scheduleIntervalLabel: "Check interval",
       scheduleScopeLabel: "Scope",
@@ -476,7 +498,7 @@ export const messages: Record<LanguageCode, AppMessages> = {
     },
     bookmarkView: {
       allBookmarksLabel: "全部书签",
-      bookmarkAccessUnavailable: "无法访问浏览器书签。请以已安装扩展的新标签页方式打开 vTab，并确认已启用书签权限。",
+      bookmarkAccessUnavailable: "无法访问浏览器书签。请以已安装扩展的新标签页方式打开 WeTab，并确认已启用书签权限。",
       bookmarkDescription: (domain) => `保存自 ${domain}`,
       defaultBookmarkLabel: "书签",
       defaultFolderLabel: "书签"
@@ -486,7 +508,7 @@ export const messages: Record<LanguageCode, AppMessages> = {
       addBookmarkTitle: "将书签添加到当前选中的浏览器书签文件夹。",
       addFolder: "添加文件夹",
       heroTag: "浏览器原生书签库",
-      heroTitle: "vTab 将浏览器书签变成可搜索的新标签页主页。",
+      heroTitle: "WeTab 将浏览器书签变成可搜索的新标签页主页。",
       heroDescription: "浏览你已在 Chrome 中维护的文件夹层级，按标题、域名或文件夹路径搜索，并直接从新标签页打开保存的链接。",
       bookmarkSummary: "书签概览",
       breadcrumbLabel: "当前书签文件夹",
@@ -496,14 +518,14 @@ export const messages: Record<LanguageCode, AppMessages> = {
       gridSearchTitle: "搜索结果",
       gridFolderTitle: "当前文件夹",
       folderPaths: "文件夹路径",
-      reload: "重新加载 vTab",
-      accessErrorTitle: "vTab 无法读取浏览器书签",
+      reload: "重新加载 WeTab",
+      accessErrorTitle: "WeTab 无法读取浏览器书签",
       loadingTitle: "正在加载书签",
-      loadingDescription: "vTab 正在读取浏览器原生书签树并准备文件夹数量。",
+      loadingDescription: "WeTab 正在读取浏览器原生书签树并准备文件夹数量。",
       noMatchesTitle: "没有匹配的书签",
       noMatchesDescription: "请尝试其他搜索词，或从侧边栏选择另一个书签文件夹。",
       noBookmarksTitle: "暂无浏览器书签",
-      noBookmarksDescription: "你的浏览器书签树为空。在 Chrome 中添加书签后，vTab 会自动刷新。",
+      noBookmarksDescription: "你的浏览器书签树为空。在 Chrome 中添加书签后，WeTab 会自动刷新。",
       searchPlaceholder: "搜索书签标题、域名或文件夹路径...",
       searchAriaLabel: "搜索书签",
       deleteBookmarkConfirm: (title) => `要从浏览器书签中删除“${title}”吗？`,
@@ -557,6 +579,16 @@ export const messages: Record<LanguageCode, AppMessages> = {
         noBookmarks: "请先选择书签，或打开包含书签的文件夹后再请求建议。",
         reject: "拒绝",
         reviewTitle: "审核分类建议",
+        scope: {
+          cancel: "取消",
+          close: "关闭 AI 范围选择",
+          currentViewDescription: (count) => `当前搜索与文件夹视图中的 ${count} 个可见书签。`,
+          currentViewLabel: "当前视图",
+          selectedDescription: (count) => `${count} 个已选书签。可先使用多选缩小范围。`,
+          selectedLabel: "已选书签",
+          submit: "生成建议",
+          title: "选择用于 AI 整理的书签"
+        },
         status: {
           applied: "已应用",
           pending: "待处理",
@@ -613,7 +645,8 @@ export const messages: Record<LanguageCode, AppMessages> = {
         close: "关闭提醒"
       },
       sidebar: {
-        actionLabel: "AI 分类",
+        actionLabel: "AI 整理",
+        actionTitle: "为选中书签或当前视图生成整理建议。",
         brandSubtitle: "书签主页",
         collapseFolder: (label) => `折叠${label}`,
         expandFolder: (label) => `展开${label}`,
@@ -643,21 +676,21 @@ export const messages: Record<LanguageCode, AppMessages> = {
       },
       dataSentTitle: "用于分类的数据",
       dataSentDescription:
-        "只有当你请求建议时，vTab 才可能把选中的书签标题、URL 和文件夹路径发送给已配置的服务提供方。所有建议都需要先审核，才会写入浏览器书签。",
+        "只有当你请求建议时，WeTab 才可能把选中的书签标题、URL 和文件夹路径发送给已配置的服务提供方。所有建议都需要先审核，才会写入浏览器书签。",
       languageTitle: "语言",
       languageHelp: "保存在本地，并应用到扩展页面。",
       languageLabel: "显示语言",
-      languageDescription: "选择 vTab 界面文本使用的语言。书签标题和文件夹名称不会被翻译。"
+      languageDescription: "选择 WeTab 界面文本使用的语言。书签标题和文件夹名称不会被翻译。"
     },
     settings: {
       openButton: "打开设置",
       title: "设置",
-      description: "在同一处配置 vTab 的行为、外观和书签自动化。",
+      description: "在同一处配置 WeTab 的行为、外观和书签自动化。",
       close: "关闭设置",
       languageTitle: "语言",
       languageHelp: "本地保存，并应用到所有扩展页面。",
       languageLabel: "显示语言",
-      languageDescription: "选择 vTab 界面文本使用的语言。书签标题和文件夹名称保持不变。",
+      languageDescription: "选择 WeTab 界面文本使用的语言。书签标题和文件夹名称保持不变。",
       themeTitle: "主题",
       themeHelp: "本地保存，并应用到所有扩展页面。",
       themeLabel: "外观模式",
@@ -685,9 +718,9 @@ export const messages: Record<LanguageCode, AppMessages> = {
       },
       dataSentTitle: "分类时发送的数据",
       dataSentDescription:
-        "只有在你请求建议时，vTab 才会把选中的书签标题、URL 和文件夹路径发送给已配置的提供方。任何建议在写入浏览器书签变更前都可以继续审核。",
+        "只有在你请求建议时，WeTab 才会把选中的书签标题、URL 和文件夹路径发送给已配置的提供方。任何建议在写入浏览器书签变更前都可以继续审核。",
       scheduleTitle: "定时链接检查",
-      scheduleHelp: "在 vTab 打开时自动重新检查书签链接是否有效。",
+      scheduleHelp: "在 WeTab 打开时自动重新检查书签链接是否有效。",
       scheduleEnabledLabel: "启用定时检查",
       scheduleIntervalLabel: "检查间隔",
       scheduleScopeLabel: "范围",

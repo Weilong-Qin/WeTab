@@ -1,6 +1,6 @@
-# vTab
+# WeTab
 
-vTab 是一款 **Chromium 优先的浏览器扩展**，用高密度、专业化的工作台替代默认新标签页，帮助你导航、整理并维护浏览器书签。它面向重视速度、清晰度和信息密度，而非装饰感的用户。
+WeTab 是一款 **Chromium 浏览器扩展**，用高密度、专业化的工作台替代默认新标签页，帮助你导航、整理并维护浏览器书签。
 
 ![新标签页](docs/images/newtab.png)
 
@@ -54,26 +54,26 @@ vTab 是一款 **Chromium 优先的浏览器扩展**，用高密度、专业化�
 
 ### 下载
 
-预编译的 vTab 扩展包可从 **[GitHub Releases](https://github.com/weilong/vtab/releases)** 页面获取。
+预编译的 WeTab 扩展包可从 **[GitHub Releases](https://github.com/weilong/vtab/releases)** 页面获取。
 
-每个发布版包含一个 `.zip` 文件（`vtab-<version>.zip`），内含完整构建的扩展，可直接侧载到浏览器使用。
+每个发布版包含一个 `.zip` 文件（`wetab-<version>.zip`），内含完整构建的扩展，可直接侧载到浏览器使用。
 
-> ⚠️ vTab 目前通过**侧载**方式安装（需要 Chrome 开发者模式）。后续版本将计划上架 Chrome 网上应用店。
+> ⚠️ WeTab 目前通过**侧载**方式安装（需要 Chrome 开发者模式）。后续版本将计划上架 Chrome 网上应用店。
 
 ### 安装到浏览器
 
-1. 从 [Releases](https://github.com/weilong/vtab/releases) 页面下载最新的 `vtab-<version>.zip`。
+1. 从 [Releases](https://github.com/weilong/vtab/releases) 页面下载最新的 `wetab-<version>.zip`。
 2. 将压缩包解压到电脑上的一个文件夹。
 3. 打开 Chrome / Edge / Brave，访问 `chrome://extensions`。
 4. 开启右上角的**开发者模式**。
 5. 点击**加载已解压的扩展程序**，选择刚刚解压的文件夹。
-6. 打开一个新标签页 — vTab 应该已经作为你的主页生效了。
+6. 打开一个新标签页 — WeTab 应该已经作为你的主页生效了。
 
 > 💡 **小技巧：** 你也可以直接在 `chrome://extensions` 页面（开发者模式开启状态下）把 `.zip` 文件拖进去 — Chrome 会自动解压并加载。
 
 ### 使用说明
 
-安装 vTab 后，每个新标签页都会显示你的书签工作台：
+安装 WeTab 后，每个新标签页都会显示你的书签工作台：
 
 | 操作 | 方法 |
 |---|---|
@@ -96,6 +96,18 @@ vTab 是一款 **Chromium 优先的浏览器扩展**，用高密度、专业化�
 ---
 
 ## 开发者指南
+
+### 技术栈
+
+| 层 | 技术 |
+|---|---|
+| 框架 | [WXT](https://wxt.dev/) + React 19 |
+| 语言 | TypeScript 5.7 |
+| 构建 | Vite 6 |
+| 样式 | CSS 自定义属性 + OKLCH Token |
+| 图标 | Lucide React |
+| 测试 | Vitest（单元）+ Playwright（E2E） |
+| 代码检查 | ESLint 10 |
 
 ### 环境要求
 
@@ -120,7 +132,7 @@ npm install
 npm run dev
 ```
 
-启动 WXT 开发服务器，自动打开一个已加载 vTab 为未打包扩展的 Chromium 窗口。**源文件变更后扩展会实时热重载** — 无需手动刷新。
+启动 WXT 开发服务器，自动打开一个已加载 WeTab 为未打包扩展的 Chromium 窗口。**源文件变更后扩展会实时热重载** — 无需手动刷新。
 
 开发服务器的构建产物输出至 `.output/chrome-mv3-dev/`。
 
@@ -253,13 +265,13 @@ tests/
 
 ### 链接验证定时
 
-在选项页中启用定时链接检查，可让 vTab 在后台按指定间隔（15 分钟 / 1 小时 / 6 小时 / 24 小时）自动重新验证书签 URL。可选限制仅检查特定文件夹。
+在选项页中启用定时链接检查，可让 WeTab 在后台按指定间隔（15 分钟 / 1 小时 / 6 小时 / 24 小时）自动重新验证书签 URL。可选限制仅检查特定文件夹。
 
 ---
 
 ## 权限说明
 
-vTab 需要以下 Chrome 权限：
+WeTab 需要以下 Chrome 权限：
 
 | 权限 | 用途 |
 |---|---|
@@ -285,22 +297,6 @@ vTab 需要以下 Chrome 权限：
 ### 服务层
 
 浏览器 API（`chrome.bookmarks`、`chrome.storage`）被隔离在服务模块（`src/services/`）之后。React 组件从不直接调用浏览器 API — 这提高了可测试性，并使表现层与平台解耦。
-
----
-
-## 技术栈
-
-| 层 | 技术 |
-|---|---|
-| 框架 | [WXT](https://wxt.dev/) + React 19 |
-| 语言 | TypeScript 5.7 |
-| 构建 | Vite 6 |
-| 样式 | CSS 自定义属性 + OKLCH Token |
-| 图标 | Lucide React |
-| 测试 | Vitest（单元）+ Playwright（E2E） |
-| 代码检查 | ESLint 10 |
-
----
 
 ## 许可证
 

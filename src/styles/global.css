@@ -276,11 +276,14 @@ button {
   padding: 0 8px;
 }
 
+.sidebar__workspace-actions {
+  padding: 0 16px 10px;
+}
+
 .sidebar__ai-button {
   width: 100%;
   justify-content: flex-start;
-  margin-bottom: 16px;
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
 }
 
 .sidebar__section-label {
@@ -1060,6 +1063,83 @@ kbd {
   color: var(--color-on-surface-variant);
   font-size: 12px;
   font-weight: 700;
+}
+
+.llm-scope-modal {
+  display: grid;
+  width: min(100%, 520px);
+  gap: 22px;
+  border-radius: 22px;
+}
+
+.llm-scope-modal__heading,
+.llm-scope-modal__actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.llm-scope-modal__heading h2 {
+  margin: 0;
+  font-size: var(--type-headline-md-size);
+  letter-spacing: var(--type-headline-md-spacing);
+}
+
+.llm-scope-modal__form {
+  display: grid;
+  gap: 12px;
+}
+
+.llm-scope-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  border: 1px solid rgba(196, 199, 199, 0.62);
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.54);
+  cursor: pointer;
+  padding: 14px;
+}
+
+.llm-scope-option:has(input:checked) {
+  border-color: rgba(0, 88, 188, 0.44);
+  background: rgba(0, 88, 188, 0.08);
+}
+
+.llm-scope-option:has(input:disabled) {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
+.llm-scope-option input {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  margin: 2px 0 0;
+}
+
+.llm-scope-option span {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.llm-scope-option strong {
+  color: var(--color-on-surface);
+  font-size: var(--type-label-lg-size);
+}
+
+.llm-scope-option small {
+  color: var(--color-on-surface-variant);
+  font-size: var(--type-label-md-size);
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+.llm-scope-modal__actions {
+  justify-content: flex-end;
+  padding-top: 6px;
 }
 
 .bookmark-card__footer {

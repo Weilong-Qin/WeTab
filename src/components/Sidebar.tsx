@@ -10,7 +10,9 @@ export interface SidebarProps {
   onSelectFolder: (id: string) => void;
   brandTitle?: string;
   brandSubtitle?: string;
+  actionDisabled?: boolean;
   actionLabel?: string;
+  actionTitle?: string;
   onAction?: () => void;
   actionLabels?: {
     delete: string;
@@ -43,7 +45,9 @@ export function Sidebar({
   onSelectFolder,
   brandTitle = "Digital Air",
   brandSubtitle = "Workspace",
+  actionDisabled = false,
   actionLabel = "AI Organize",
+  actionTitle,
   actionLabels,
   onAction,
   collapseFolderLabel = (label) => `Collapse ${label}`,
@@ -109,18 +113,27 @@ export function Sidebar({
         ) : null}
       </div>
 
+      {onAction ? (
+        <div className="sidebar__workspace-actions">
+          <Button
+            className="sidebar__ai-button"
+            disabled={actionDisabled}
+            icon="sparkles"
+            onClick={onAction}
+            title={actionTitle}
+            variant="glass"
+          >
+            {actionLabel}
+          </Button>
+        </div>
+      ) : null}
+
       <nav
         aria-label={navLabel}
         className="sidebar__nav"
         onPointerDown={onSelectionPointerDown}
         ref={selectionContainerRef}
       >
-        {onAction ? (
-          <Button className="sidebar__ai-button" icon="sparkles" onClick={onAction} variant="primary">
-            {actionLabel}
-          </Button>
-        ) : null}
-
         {rootFolder ? (
           <SidebarItem
             folder={rootFolder}

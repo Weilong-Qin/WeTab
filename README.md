@@ -1,6 +1,6 @@
-# vTab
+# WeTab
 
-vTab is a **Chromium-first browser extension** that replaces the default new-tab page with a dense, professional workspace for navigating, organizing, and maintaining your browser bookmarks. Built for users who prioritize speed, clarity, and information density over decoration.
+WeTab is a **Chromium browser extension** that replaces the default new-tab page with a dense, professional workspace for navigating, organizing, and maintaining your browser bookmarks.
 
 ![New Tab](docs/images/newtab.png)
 
@@ -54,26 +54,26 @@ vTab is a **Chromium-first browser extension** that replaces the default new-tab
 
 ### Download
 
-Pre-built vTab packages are available on the **[GitHub Releases](https://github.com/weilong/vtab/releases)** page.
+Pre-built WeTab packages are available on the **[GitHub Releases](https://github.com/weilong/vtab/releases)** page.
 
-Each release includes a `.zip` file (`vtab-<version>.zip`) containing the fully built extension, ready for sideloading into your browser.
+Each release includes a `.zip` file (`wetab-<version>.zip`) containing the fully built extension, ready for sideloading into your browser.
 
-> ⚠️ vTab is currently available for **sideloading** (via Chrome's developer mode). Chrome Web Store publishing is planned for a future release.
+> ⚠️ WeTab is currently available for **sideloading** (via Chrome's developer mode). Chrome Web Store publishing is planned for a future release.
 
 ### Install in Browser
 
-1. Download the latest `vtab-<version>.zip` from the [Releases](https://github.com/weilong/vtab/releases) page.
+1. Download the latest `wetab-<version>.zip` from the [Releases](https://github.com/weilong/vtab/releases) page.
 2. Unzip the file to a folder on your computer.
 3. Open Chrome / Edge / Brave and navigate to `chrome://extensions`.
 4. Enable **Developer mode** (toggle in the top-right corner).
 5. Click **Load unpacked** and select the unzipped folder.
-6. Open a new tab — you should see vTab as your homepage.
+6. Open a new tab — you should see WeTab as your homepage.
 
 > 💡 **Pro tip:** You can also drag the `.zip` file directly onto the `chrome://extensions` page (with Developer mode on) — Chrome will extract and load it automatically.
 
 ### Usage Guide
 
-Once vTab is installed, every new tab shows your bookmark workspace:
+Once WeTab is installed, every new tab shows your bookmark workspace:
 
 | What to do | How |
 |---|---|
@@ -96,6 +96,19 @@ Once vTab is installed, every new tab shows your bookmark workspace:
 ---
 
 ## For Developers
+
+
+### Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Framework | [WXT](https://wxt.dev/) + React 19 |
+| Language | TypeScript 5.7 |
+| Build | Vite 6 |
+| Styling | CSS Custom Properties + OKLCH tokens |
+| Icons | Lucide React |
+| Testing | Vitest (unit) + Playwright (E2E) |
+| Linting | ESLint 10 |
 
 ### Prerequisites
 
@@ -120,7 +133,7 @@ npm install
 npm run dev
 ```
 
-This launches the WXT dev server. It automatically opens a Chromium window with vTab loaded as an unpacked extension. **Changes to source files hot-reload the extension in real time** — no manual refresh needed.
+This launches the WXT dev server. It automatically opens a Chromium window with WeTab loaded as an unpacked extension. **Changes to source files hot-reload the extension in real time** — no manual refresh needed.
 
 The dev server outputs to `.output/chrome-mv3-dev/`.
 
@@ -259,7 +272,7 @@ In Options, enable scheduled link checks to automatically re-verify bookmark URL
 
 ## Permissions
 
-vTab requires these Chrome permissions:
+WeTab requires these Chrome permissions:
 
 | Permission | Reason |
 |---|---|
@@ -285,22 +298,6 @@ Pages compose existing components rather than defining new visual systems. Compo
 ### Service Layer
 
 Browser APIs (`chrome.bookmarks`, `chrome.storage`) are isolated behind service modules (`src/services/`). React components never call browser APIs directly — improving testability and keeping the presentation layer platform-agnostic.
-
----
-
-## Tech Stack
-
-| Layer | Technology |
-|---|---|
-| Framework | [WXT](https://wxt.dev/) + React 19 |
-| Language | TypeScript 5.7 |
-| Build | Vite 6 |
-| Styling | CSS Custom Properties + OKLCH tokens |
-| Icons | Lucide React |
-| Testing | Vitest (unit) + Playwright (E2E) |
-| Linting | ESLint 10 |
-
----
 
 ## License
 
