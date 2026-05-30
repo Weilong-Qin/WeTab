@@ -295,7 +295,7 @@ export function DailyFeed({
                     <span>{groupLabel}</span>
                   </div>
                   <div className="daily-feed__column-body">
-                    {group.sources.map((source, sourceIndex) => {
+                    {group.sources.map((source) => {
                       const col = columns[source] ?? INITIAL_COLUMN;
                       const sourceLabel = labels.sources[source] ?? source;
 

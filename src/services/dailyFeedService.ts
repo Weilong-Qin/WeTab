@@ -13,9 +13,6 @@ const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
 const FETCH_TIMEOUT_MS = 15000;
 const GITHUB_PER_PAGE = 8;
 const HN_TOP_COUNT = 8;
-const LEETCODE_URL_BASE = "https://leetcode.com/problems/";
-const LEETCODE_GRAPHQL_URL = "https://leetcode.com/graphql/";
-const LEETCODE_HOME_URL = "https://leetcode.com/";
 
 function leetCodeGraphQLUrl(region: string): string {
   return region === "cn" ? "https://leetcode.cn/graphql/" : "https://leetcode.com/graphql/";
@@ -310,7 +307,7 @@ async function fetchLeetCodeDaily(): Promise<DailyFeedItem[]> {
     difficulty: q.difficulty ?? "Unknown",
     source: "leetcode" as const,
     metadata: challenge.date ?? "",
-    practice: buildPracticeQueue(topicTags),
+    practice: buildPracticeQueue(topicTags, region),
     topicNames
   }];
 }
@@ -727,7 +724,7 @@ async function resolveCacheKey(source: FeedSource): Promise<string | undefined> 
   return username ? `${username.toLowerCase()}:${region}` : "not-configured";
 }
 
-function buildPracticeQueue(topicTags: LeetCodeTopicTag[]): DailyFeedPracticeItem[] {
+function buildPracticeQueue(topicTags: LeetCodeTopicTag[], region: string): DailyFeedPracticeItem[] {
   const templates = topicTags
     .map((tag) => tag.slug)
     .filter((slug): slug is string => Boolean(slug))
@@ -740,7 +737,7 @@ function buildPracticeQueue(topicTags: LeetCodeTopicTag[]): DailyFeedPracticeIte
     label: item.label,
     topic: item.topic,
     title: item.title,
-    url: `${LEETCODE_URL_BASE}${item.slug}/`
+    url: `${leetCodeProblemUrl(region, "/problems/")}${item.slug}/`
   }));
 }
 
