@@ -11,6 +11,7 @@ import {
   Command,
   Copy,
   ExternalLink,
+  Flame,
   FlaskConical,
   FolderOpen,
   FolderPlus,
@@ -24,6 +25,7 @@ import {
   Pencil,
   Plus,
   RefreshCw,
+  Rss,
   Search,
   Settings,
   ShieldCheck,
@@ -48,6 +50,7 @@ export type IconName =
   | "command"
   | "copy"
   | "external"
+  | "flame"
   | "flask"
   | "folderAdd"
   | "folderOpen"
@@ -61,6 +64,7 @@ export type IconName =
   | "pencil"
   | "plus"
   | "refresh"
+  | "rss"
   | "search"
   | "settings"
   | "shield"
@@ -83,6 +87,7 @@ const icons: Record<IconName, LucideIcon> = {
   command: Command,
   copy: Copy,
   external: ExternalLink,
+  flame: Flame,
   flask: FlaskConical,
   folderAdd: FolderPlus,
   folderOpen: FolderOpen,
@@ -96,6 +101,7 @@ const icons: Record<IconName, LucideIcon> = {
   pencil: Pencil,
   plus: Plus,
   refresh: RefreshCw,
+  rss: Rss,
   search: Search,
   settings: Settings,
   shield: ShieldCheck,

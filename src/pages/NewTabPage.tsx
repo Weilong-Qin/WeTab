@@ -14,6 +14,7 @@ import { AppShell } from "../components/AppShell";
 import { BookmarkCard } from "../components/BookmarkCard";
 import { BookmarkEditorModal, type BookmarkEditorValues } from "../components/BookmarkEditorModal";
 import { Breadcrumbs } from "../components/Breadcrumbs";
+import { DailyFeed } from "../components/DailyFeed";
 import { Button } from "../components/Button";
 import { EmptyState } from "../components/EmptyState";
 import { Icon } from "../components/Icon";
@@ -21,6 +22,7 @@ import { LlmScopeModal, type LlmScopeChoice } from "../components/LlmScopeModal"
 import { Sidebar } from "../components/Sidebar";
 import { TopSearch } from "../components/TopSearch";
 import { useI18n } from "../hooks/useI18n";
+import { useLeetCodeProfile } from "../hooks/useLeetCodeProfile";
 import { SettingsModal } from "../components/SettingsModal";
 import { useThemePreference } from "../hooks/useThemePreference";
 import { useUrlValidationSchedule } from "../hooks/useUrlValidationSchedule";
@@ -122,6 +124,7 @@ const EMPTY_EDITOR_VALUES: BookmarkEditorValues = {
 
 export function NewTabPage() {
   const { messages } = useI18n();
+  const { leetcodeProfile } = useLeetCodeProfile();
   useThemePreference();
   const {
     isUrlValidationScheduleLoading,
@@ -1168,6 +1171,7 @@ export function NewTabPage() {
         />
       }
     >
+      <DailyFeed key={leetcodeProfile.username} labels={messages.newTab.dailyFeed} />
       <section
         className="content-section"
         onPointerDown={(event) => handleSelectionPointerDown("bookmarks", event)}

@@ -4,8 +4,10 @@ import { GlassPanel } from "./GlassPanel";
 import { Icon } from "./Icon";
 import { Tag } from "./Tag";
 import { useI18n } from "../hooks/useI18n";
+import { useLeetCodeProfile } from "../hooks/useLeetCodeProfile";
 import { useThemePreference } from "../hooks/useThemePreference";
 import { useUrlValidationSchedule } from "../hooks/useUrlValidationSchedule";
+import type { LeetCodeRegion } from "../types/settings";
 import {
   DEFAULT_LLM_CONFIG,
   loadLlmConfig,
@@ -29,6 +31,7 @@ export interface SettingsModalProps {
 
 export function SettingsModal({ folders, onClose }: SettingsModalProps) {
   const { isLanguageLoading, language, languageOptions, messages, setLanguage } = useI18n();
+  const { isLeetCodeProfileLoading, leetcodeProfile, setLeetCodeProfile } = useLeetCodeProfile();
   const { isThemePreferenceLoading, setThemePreference, themePreference } = useThemePreference();
   const {
     isUrlValidationScheduleLoading,
@@ -100,6 +103,17 @@ export function SettingsModal({ folders, onClose }: SettingsModalProps) {
 
   function handleThemeChange(event: ChangeEvent<HTMLSelectElement>) {
     void setThemePreference(event.target.value as "light" | "dark" | "system");
+  }
+
+  function handleLeetCodeUsernameChange(event: ChangeEvent<HTMLInputElement>) {
+    void setLeetCodeProfile({ ...leetcodeProfile, username: event.target.value });
+  }
+
+  function handleLeetCodeRegionChange(event: ChangeEvent<HTMLSelectElement>) {
+    void setLeetCodeProfile({
+      ...leetcodeProfile,
+      region: event.target.value as LeetCodeRegion
+    });
   }
 
   function handleLlmConfigChange(field: keyof LlmConfig, value: string) {
@@ -239,6 +253,45 @@ export function SettingsModal({ folders, onClose }: SettingsModalProps) {
                   <option value="dark">{messages.settings.themeModes.dark}</option>
                   <option value="system">{messages.settings.themeModes.system}</option>
                 </select>
+              </label>
+            </div>
+          </section>
+
+          <section className="settings-section">
+            <div className="settings-panel__heading">
+              <h3 className="settings-panel__title-with-icon">
+                {messages.settings.leetcodeTitle}
+                <SettingsInfoTooltip text={messages.settings.leetcodeHelp} />
+              </h3>
+            </div>
+            <div className="settings-form">
+              <label>
+                <div className="settings-label-with-icon">
+                  <span>{messages.settings.leetcodeRegionLabel}</span>
+                  <SettingsInfoTooltip align="end" inline size={14} text={messages.settings.leetcodeRegionDescription} />
+                </div>
+                <select
+                  disabled={isLeetCodeProfileLoading}
+                  onChange={handleLeetCodeRegionChange}
+                  value={leetcodeProfile.region}
+                >
+                  <option value="com">{messages.settings.leetcodeRegionOptions.com}</option>
+                  <option value="cn">{messages.settings.leetcodeRegionOptions.cn}</option>
+                </select>
+              </label>
+              <label>
+                <div className="settings-label-with-icon">
+                  <span>{messages.settings.leetcodeUsernameLabel}</span>
+                  <SettingsInfoTooltip align="end" inline size={14} text={messages.settings.leetcodeUsernameDescription} />
+                </div>
+                <input
+                  autoComplete="off"
+                  disabled={isLeetCodeProfileLoading}
+                  onChange={handleLeetCodeUsernameChange}
+                  placeholder={messages.settings.leetcodeUsernamePlaceholder}
+                  type="text"
+                  value={leetcodeProfile.username}
+                />
               </label>
             </div>
           </section>

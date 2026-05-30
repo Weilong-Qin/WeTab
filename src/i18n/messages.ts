@@ -33,6 +33,40 @@ export interface AppMessages {
     noBookmarksDescription: string;
     searchPlaceholder: string;
     searchAriaLabel: string;
+    dailyFeed: {
+      activity: {
+        activeDays: (count: number) => string;
+        acTotal: (ac: number, total: number) => string;
+        configureDescription: string;
+        last30: (count: number) => string;
+        notFoundDescription: string;
+        siteRanking: (ranking: string) => string;
+        streak: (count: number) => string;
+        totalSubmissions: (count: number) => string;
+      };
+      collapse: string;
+      difficulty: (difficulty: string, topics: string[]) => string;
+      expand: string;
+      practiceLabels: {
+        core: string;
+        stretch: string;
+        warmUp: string;
+      };
+      practiceMetadata: (topic: string, difficulty: string) => string;
+      relatedPracticeSubtitle: string;
+      relatedPracticeTitle: string;
+      groups: Record<string, string>;
+      retry: string;
+      sources: {
+        github: string;
+        hackernews: string;
+        leetcode: string;
+        leetcodeActivity: string;
+      };
+      title: string;
+      topicName: (topic: string) => string;
+      unknownDifficulty: string;
+    };
     deleteBookmarkConfirm: (title: string) => string;
     deleteFolderConfirm: (title: string) => string;
     deleteSelectedConfirm: (count: number) => string;
@@ -195,6 +229,17 @@ export interface AppMessages {
     languageHelp: string;
     languageLabel: string;
     languageDescription: string;
+    leetcodeTitle: string;
+    leetcodeHelp: string;
+    leetcodeRegionLabel: string;
+    leetcodeRegionDescription: string;
+    leetcodeRegionOptions: {
+      com: string;
+      cn: string;
+    };
+    leetcodeUsernameLabel: string;
+    leetcodeUsernamePlaceholder: string;
+    leetcodeUsernameDescription: string;
     themeTitle: string;
     themeHelp: string;
     themeLabel: string;
@@ -283,6 +328,43 @@ export const messages: Record<LanguageCode, AppMessages> = {
         "Your browser bookmark tree is empty. Add bookmarks in Chrome and WeTab will refresh automatically.",
       searchPlaceholder: "Search bookmark titles, domains, or folder paths...",
       searchAriaLabel: "Search bookmarks",
+      dailyFeed: {
+        activity: {
+          activeDays: (count) => `${count}/7 active days`,
+          acTotal: (ac, total) => `${ac}/${total} solved`,
+          configureDescription: "Set a LeetCode username in settings to show public activity.",
+          last30: (count) => `${count} submissions in 30d`,
+          notFoundDescription: "No public activity found for this username.",
+          siteRanking: (ranking) => `Ranking #${ranking}`,
+          streak: (count) => `${count} day streak`,
+          totalSubmissions: (count) => `${count} total submissions`
+        },
+        collapse: "Collapse",
+        difficulty: (difficulty, topics) =>
+          [`Difficulty: ${difficulty}`, ...topics.slice(0, 2)].join(" · "),
+        expand: "Expand",
+        practiceLabels: {
+          core: "Core",
+          stretch: "Stretch",
+          warmUp: "Warm-up"
+        },
+        practiceMetadata: (topic, difficulty) => `${topic} · ${difficulty}`,
+        relatedPracticeSubtitle: "Warm-up · Core · Stretch",
+        relatedPracticeTitle: "Related Practice",
+        groups: {
+          leetcode: "LeetCode"
+        },
+        retry: "Retry",
+        sources: {
+          github: "GitHub Trending",
+          hackernews: "HackerNews",
+          leetcode: "LeetCode Daily",
+          leetcodeActivity: "LeetCode Activity"
+        },
+        title: "Daily Feed",
+        topicName: (topic) => topic,
+        unknownDifficulty: "Unknown"
+      },
       deleteBookmarkConfirm: (title) => `Delete "${title}" from browser bookmarks?`,
       deleteFolderConfirm: (title) =>
         `Delete folder "${title}" and all bookmarks and folders inside it? This writes to browser bookmarks.`,
@@ -449,6 +531,17 @@ export const messages: Record<LanguageCode, AppMessages> = {
       languageHelp: "Stored locally and applied across extension pages.",
       languageLabel: "Display language",
       languageDescription: "Choose the language used for WeTab interface text. Bookmark titles and folder names are left unchanged.",
+      leetcodeTitle: "LeetCode activity",
+      leetcodeHelp: "Optional. WeTab reads only public LeetCode profile activity, never submission code or cookies.",
+      leetcodeRegionLabel: "LeetCode region",
+      leetcodeRegionDescription: "Choose leetcode.com for global accounts or leetcode.cn for China-region accounts.",
+      leetcodeRegionOptions: {
+        com: "leetcode.com (Global)",
+        cn: "leetcode.cn (China)"
+      },
+      leetcodeUsernameLabel: "LeetCode username",
+      leetcodeUsernamePlaceholder: "username",
+      leetcodeUsernameDescription: "Used for the Daily Feed activity card.",
       themeTitle: "Theme",
       themeHelp: "Stored locally and applied across extension pages.",
       themeLabel: "Appearance mode",
@@ -528,6 +621,75 @@ export const messages: Record<LanguageCode, AppMessages> = {
       noBookmarksDescription: "你的浏览器书签树为空。在 Chrome 中添加书签后，WeTab 会自动刷新。",
       searchPlaceholder: "搜索书签标题、域名或文件夹路径...",
       searchAriaLabel: "搜索书签",
+      dailyFeed: {
+        activity: {
+          activeDays: (count) => `近 7 天活跃 ${count} 天`,
+          acTotal: (ac, total) => `已解决 ${ac}/${total} 题`,
+          configureDescription: "在设置中填写 LeetCode 用户名后显示公开做题频率。",
+          last30: (count) => `近 30 天提交 ${count} 次`,
+          notFoundDescription: "没有找到这个用户名的公开做题记录。",
+          siteRanking: (ranking) => `排名 #${ranking}`,
+          streak: (count) => `连续活跃 ${count} 天`,
+          totalSubmissions: (count) => `总计提交 ${count} 次`
+        },
+        collapse: "折叠",
+        difficulty: (difficulty, topics) => {
+          const labels: Record<string, string> = {
+            Easy: "简单",
+            Hard: "困难",
+            Medium: "中等",
+            Unknown: "未知"
+          };
+          return [`难度：${labels[difficulty] ?? difficulty}`, ...topics.slice(0, 2)].join(" · ");
+        },
+        expand: "展开",
+        practiceLabels: {
+          core: "核心",
+          stretch: "进阶",
+          warmUp: "热身"
+        },
+        practiceMetadata: (topic, difficulty) => {
+          const labels: Record<string, string> = {
+            Easy: "简单",
+            Hard: "困难",
+            Medium: "中等"
+          };
+          return `${topic} · ${labels[difficulty] ?? difficulty}`;
+        },
+        relatedPracticeSubtitle: "热身 · 核心 · 进阶",
+        relatedPracticeTitle: "相关练习",
+        groups: {
+          leetcode: "LeetCode"
+        },
+        retry: "重试",
+        sources: {
+          github: "GitHub 趋势",
+          hackernews: "HackerNews",
+          leetcode: "LeetCode 每日一题",
+          leetcodeActivity: "LeetCode 活跃度"
+        },
+        title: "每日动态",
+        topicName: (topic) => {
+          const labels: Record<string, string> = {
+            Array: "数组",
+            BFS: "广度优先搜索",
+            "Binary Search": "二分查找",
+            "DFS/BFS": "深度/广度优先搜索",
+            DP: "动态规划",
+            Graph: "图",
+            "Hash Table": "哈希表",
+            "In-place": "原地算法",
+            "Prefix Sum": "前缀和",
+            "Sliding Window": "滑动窗口",
+            String: "字符串",
+            "String DP": "字符串动态规划",
+            Tree: "树",
+            "Two Pointers": "双指针"
+          };
+          return labels[topic] ?? topic;
+        },
+        unknownDifficulty: "未知"
+      },
       deleteBookmarkConfirm: (title) => `要从浏览器书签中删除“${title}”吗？`,
       deleteFolderConfirm: (title) => `要删除文件夹“${title}”以及其中所有书签和子文件夹吗？此操作会写入浏览器书签。`,
       deleteSelectedConfirm: (count) => `要从浏览器书签中删除已选的 ${count} 个项目吗？`,
@@ -691,6 +853,17 @@ export const messages: Record<LanguageCode, AppMessages> = {
       languageHelp: "本地保存，并应用到所有扩展页面。",
       languageLabel: "显示语言",
       languageDescription: "选择 WeTab 界面文本使用的语言。书签标题和文件夹名称保持不变。",
+      leetcodeTitle: "LeetCode 活跃度",
+      leetcodeHelp: "可选。WeTab 只读取公开的 LeetCode 主页活跃度，不读取提交代码或 cookie。",
+      leetcodeRegionLabel: "LeetCode 区域",
+      leetcodeRegionDescription: "全球账号选择 leetcode.com，中国区账号选择 leetcode.cn。",
+      leetcodeRegionOptions: {
+        com: "leetcode.com (全球)",
+        cn: "leetcode.cn (中国)"
+      },
+      leetcodeUsernameLabel: "LeetCode 用户名",
+      leetcodeUsernamePlaceholder: "用户名",
+      leetcodeUsernameDescription: "用于 Daily Feed 的活跃度卡片。",
       themeTitle: "主题",
       themeHelp: "本地保存，并应用到所有扩展页面。",
       themeLabel: "外观模式",
