@@ -1,4 +1,5 @@
 import { browser, type Browser } from "wxt/browser";
+import { LlmConfigPartialSchema } from "../utils/schemas";
 
 const LLM_CONFIG_STORAGE_KEY = "vtab.llmConfig";
 const DEFAULT_CONNECTION_TIMEOUT_MS = 10000;
@@ -22,17 +23,19 @@ export const DEFAULT_LLM_CONFIG: LlmConfig = {
 };
 
 export function normalizeLlmConfig(value: unknown): LlmConfig {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
+  const parsed = LlmConfigPartialSchema.safeParse(value);
+
+  if (!parsed.success) {
     return { ...DEFAULT_LLM_CONFIG };
   }
 
-  const maybeConfig = value as Partial<Record<keyof LlmConfig, unknown>>;
-  const baseUrl = normalizeBaseUrl(maybeConfig.baseUrl);
-  const model = normalizeTextField(maybeConfig.model) || DEFAULT_LLM_CONFIG.model;
+  const raw = parsed.data;
+  const baseUrl = normalizeBaseUrl(raw.baseUrl);
+  const model = raw.model || DEFAULT_LLM_CONFIG.model;
 
   return {
     baseUrl,
-    apiKey: normalizeTextField(maybeConfig.apiKey),
+    apiKey: raw.apiKey ?? "",
     model
   };
 }
@@ -114,7 +117,11 @@ export async function testLlmConnection(
 }
 
 function normalizeBaseUrl(value: unknown): string {
-  const trimmed = normalizeTextField(value).replace(/\/+$/u, "");
+  if (typeof value !== "string" || !value.trim()) {
+    return DEFAULT_LLM_CONFIG.baseUrl;
+  }
+
+  const trimmed = value.trim().replace(/\/+$/u, "");
 
   if (!trimmed) {
     return DEFAULT_LLM_CONFIG.baseUrl;
@@ -131,8 +138,4 @@ function normalizeBaseUrl(value: unknown): string {
   } catch {
     return DEFAULT_LLM_CONFIG.baseUrl;
   }
-}
-
-function normalizeTextField(value: unknown): string {
-  return typeof value === "string" ? value.trim() : "";
 }

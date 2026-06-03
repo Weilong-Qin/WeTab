@@ -6,6 +6,17 @@ dist/
 test-results/
 playwright-report/
 
+# Temporary dump files from AI context sessions
+_chunk_*.txt
+_dump*
+_all*
+.all-files.txt
+_batch*
+_report.txt
+%OUT%
+127.0.0.1/
+4173/
+
 # Local AI skill/plugin installs
 skills-lock.json
 .agents/skills/e2e-testing-patterns/

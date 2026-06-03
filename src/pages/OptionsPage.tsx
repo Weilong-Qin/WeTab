@@ -1,77 +1,17 @@
-import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
+import { type ChangeEvent } from "react";
 import { Button } from "../components/Button";
 import { GlassPanel } from "../components/GlassPanel";
 import { Icon } from "../components/Icon";
+import { LlmConfigForm } from "../components/LlmConfigForm";
 import { Tag } from "../components/Tag";
 import { useI18n } from "../hooks/useI18n";
+import { useLlmConfig } from "../hooks/useLlmConfig";
 import { useThemePreference } from "../hooks/useThemePreference";
-import {
-  DEFAULT_LLM_CONFIG,
-  loadLlmConfig,
-  normalizeLlmConfig,
-  saveLlmConfig,
-  testLlmConnection,
-  type LlmConfig
-} from "../services/llmConfigService";
-
-type SaveStatus = "idle" | "saving" | "saved" | "error";
-type TestStatus = "idle" | "testing" | "success" | "error";
-
-const LLM_CONFIG_SAVE_DEBOUNCE_MS = 400;
 
 export function OptionsPage() {
   const { isLanguageLoading, language, languageOptions, messages, setLanguage } = useI18n();
   useThemePreference();
-  const [isLlmConfigLoading, setIsLlmConfigLoading] = useState(true);
-  const [llmConfig, setLlmConfig] = useState<LlmConfig>(DEFAULT_LLM_CONFIG);
-  const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
-  const [testStatus, setTestStatus] = useState<TestStatus>("idle");
-  const llmConfigSaveTimeoutRef = useRef<ReturnType<typeof globalThis.setTimeout> | null>(null);
-  const llmConfigSaveRequestIdRef = useRef(0);
-  const pendingLlmConfigSaveRef = useRef<LlmConfig | null>(null);
-
-  const normalizedLlmConfig = useMemo(() => normalizeLlmConfig(llmConfig), [llmConfig]);
-  const isBaseUrlValid = isHttpUrl(llmConfig.baseUrl);
-  const isTestConnectionDisabled =
-    isLlmConfigLoading ||
-    testStatus === "testing" ||
-    !isBaseUrlValid ||
-    !llmConfig.apiKey.trim() ||
-    !llmConfig.model.trim();
-
-  useEffect(() => {
-    let isMounted = true;
-
-    async function loadSavedConfig() {
-      const savedConfig = await loadLlmConfig();
-
-      if (isMounted) {
-        setLlmConfig(savedConfig);
-        setIsLlmConfigLoading(false);
-      }
-    }
-
-    void loadSavedConfig();
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (llmConfigSaveTimeoutRef.current !== null) {
-        globalThis.clearTimeout(llmConfigSaveTimeoutRef.current);
-      }
-
-      const pendingConfig = pendingLlmConfigSaveRef.current;
-      pendingLlmConfigSaveRef.current = null;
-
-      if (pendingConfig) {
-        void saveLlmConfig(pendingConfig);
-      }
-    };
-  }, []);
+  const llm = useLlmConfig();
 
   function handleLanguageChange(event: ChangeEvent<HTMLSelectElement>) {
     const nextOption = languageOptions.find((option) => option.code === event.target.value);
@@ -80,60 +20,6 @@ export function OptionsPage() {
       void setLanguage(nextOption.code);
     }
   }
-
-  function handleLlmConfigChange(field: keyof LlmConfig, value: string) {
-    const nextConfig = {
-      ...llmConfig,
-      [field]: value
-    };
-
-    setLlmConfig(nextConfig);
-    setSaveStatus("saving");
-    setTestStatus("idle");
-
-    if (llmConfigSaveTimeoutRef.current !== null) {
-      globalThis.clearTimeout(llmConfigSaveTimeoutRef.current);
-    }
-
-    const requestId = llmConfigSaveRequestIdRef.current + 1;
-    llmConfigSaveRequestIdRef.current = requestId;
-    pendingLlmConfigSaveRef.current = nextConfig;
-    llmConfigSaveTimeoutRef.current = globalThis.setTimeout(() => {
-      llmConfigSaveTimeoutRef.current = null;
-      pendingLlmConfigSaveRef.current = null;
-
-      void saveLlmConfig(nextConfig)
-        .then(() => {
-          if (llmConfigSaveRequestIdRef.current === requestId) {
-            setSaveStatus("saved");
-          }
-        })
-        .catch(() => {
-          if (llmConfigSaveRequestIdRef.current === requestId) {
-            setSaveStatus("error");
-          }
-        });
-    }, LLM_CONFIG_SAVE_DEBOUNCE_MS);
-  }
-
-  async function handleTestConnection() {
-    if (isTestConnectionDisabled) {
-      return;
-    }
-
-    setTestStatus("testing");
-
-    const result = await testLlmConnection(normalizedLlmConfig);
-    setTestStatus(result.ok ? "success" : "error");
-  }
-
-  const providerStatusMessage = getProviderStatusMessage({
-    isBaseUrlValid,
-    isLoading: isLlmConfigLoading,
-    saveStatus,
-    testStatus,
-    messages: messages.options.providerStatus
-  });
 
   return (
     <main className="settings-page">
@@ -172,130 +58,35 @@ export function OptionsPage() {
       </GlassPanel>
 
       <GlassPanel className="settings-panel">
-        <div className="settings-panel__heading">
-          <h2 className="settings-panel__title-with-icon">
-            {messages.options.providerTitle}
-            <Icon
-              className="settings-info-icon"
-              name="info"
-              size={16}
-              title={`${messages.options.providerHelp}\n\n${messages.options.dataSentTitle}: ${messages.options.dataSentDescription}`}
-            />
-          </h2>
-          <Button
-            disabled={isTestConnectionDisabled}
-            icon="shield"
-            onClick={handleTestConnection}
-            variant="glass"
-          >
-            {testStatus === "testing" ? messages.options.testingConnection : messages.options.testConnection}
-          </Button>
-        </div>
-
-        <form className="settings-form" onSubmit={(event) => event.preventDefault()}>
-          <label>
-            <span>{messages.options.baseUrl}</span>
-            <input
-              disabled={isLlmConfigLoading}
-              onChange={(event) => handleLlmConfigChange("baseUrl", event.target.value)}
-              placeholder={DEFAULT_LLM_CONFIG.baseUrl}
-              type="url"
-              value={llmConfig.baseUrl}
-            />
-          </label>
-          <label>
-            <span>{messages.options.apiKey}</span>
-            <input
-              autoComplete="off"
-              disabled={isLlmConfigLoading}
-              onChange={(event) => handleLlmConfigChange("apiKey", event.target.value)}
-              placeholder="sk-..."
-              type="password"
-              value={llmConfig.apiKey}
-            />
-          </label>
-          <label>
-            <span>{messages.options.model}</span>
-            <input
-              disabled={isLlmConfigLoading}
-              onChange={(event) => handleLlmConfigChange("model", event.target.value)}
-              placeholder={DEFAULT_LLM_CONFIG.model}
-              type="text"
-              value={llmConfig.model}
-            />
-          </label>
-        </form>
-
-        {providerStatusMessage ? (
-          <p aria-live="polite" className="settings-status">
-            {providerStatusMessage}
-          </p>
-        ) : null}
-
+        <LlmConfigForm
+          headingTitle={
+            <h2 className="settings-panel__title-with-icon">
+              {messages.options.providerTitle}
+              <Icon
+                className="settings-info-icon"
+                name="info"
+                size={16}
+                title={`${messages.options.providerHelp}\n\n${messages.options.dataSentTitle}: ${messages.options.dataSentDescription}`}
+              />
+            </h2>
+          }
+          isLlmConfigLoading={llm.isLlmConfigLoading}
+          isTestConnectionDisabled={llm.isTestConnectionDisabled}
+          llmConfig={llm.llmConfig}
+          messages={{
+            baseUrl: messages.options.baseUrl,
+            apiKey: messages.options.apiKey,
+            model: messages.options.model,
+            testConnection: messages.options.testConnection,
+            testingConnection: messages.options.testingConnection,
+            providerStatus: messages.options.providerStatus
+          }}
+          onFieldChange={llm.handleLlmConfigChange}
+          onTestConnection={llm.handleTestConnection}
+          saveStatus={llm.saveStatus}
+          testStatus={llm.testStatus}
+        />
       </GlassPanel>
     </main>
   );
-}
-
-interface ProviderStatusMessageParams {
-  isBaseUrlValid: boolean;
-  isLoading: boolean;
-  saveStatus: SaveStatus;
-  testStatus: TestStatus;
-  messages: {
-    invalidBaseUrl: string;
-    loading: string;
-    saveError: string;
-    saved: string;
-    saving: string;
-    testError: string;
-    testSuccess: string;
-  };
-}
-
-function getProviderStatusMessage({
-  isBaseUrlValid,
-  isLoading,
-  saveStatus,
-  testStatus,
-  messages
-}: ProviderStatusMessageParams): string {
-  if (isLoading) {
-    return messages.loading;
-  }
-
-  if (!isBaseUrlValid) {
-    return messages.invalidBaseUrl;
-  }
-
-  if (testStatus === "success") {
-    return messages.testSuccess;
-  }
-
-  if (testStatus === "error") {
-    return messages.testError;
-  }
-
-  if (saveStatus === "saving") {
-    return messages.saving;
-  }
-
-  if (saveStatus === "saved") {
-    return messages.saved;
-  }
-
-  if (saveStatus === "error") {
-    return messages.saveError;
-  }
-
-  return "";
-}
-
-function isHttpUrl(value: string): boolean {
-  try {
-    const parsedUrl = new URL(value.trim());
-    return parsedUrl.protocol === "http:" || parsedUrl.protocol === "https:";
-  } catch {
-    return false;
-  }
 }

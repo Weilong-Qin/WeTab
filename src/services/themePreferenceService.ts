@@ -1,16 +1,13 @@
 import { browser, type Browser } from "wxt/browser";
 import type { ThemePreference } from "../types/settings";
+import { safeParseOrDefault, ThemePreferenceSchema } from "../utils/schemas";
 
 const THEME_PREFERENCE_STORAGE_KEY = "vtab.themePreference";
 
 export const DEFAULT_THEME_PREFERENCE: ThemePreference = "system";
 
 export function normalizeThemePreference(value: unknown): ThemePreference {
-  if (value === "light" || value === "dark" || value === "system") {
-    return value;
-  }
-
-  return DEFAULT_THEME_PREFERENCE;
+  return safeParseOrDefault(ThemePreferenceSchema, value, DEFAULT_THEME_PREFERENCE);
 }
 
 export async function loadThemePreference(): Promise<ThemePreference> {

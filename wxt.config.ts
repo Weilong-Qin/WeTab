@@ -11,7 +11,18 @@ export default defineConfig({
     description: "A bookmark-powered browser homepage with a reusable Digital Air design system.",
     version: "0.1.0",
     permissions: ["bookmarks", "favicon", "storage"],
-    host_permissions: ["http://*/*", "https://*/*"],
+    host_permissions: [
+      // Daily Feed API endpoints (always needed)
+      "https://leetcode.com/*",
+      "https://leetcode.cn/*",
+      "https://api.github.com/*",
+      "https://hacker-news.firebaseio.com/*"
+    ],
+    optional_host_permissions: [
+      // URL validation and user-configured LLM endpoints (requested on demand)
+      "http://*/*",
+      "https://*/*"
+    ],
     chrome_url_overrides: {
       newtab: "newtab.html"
     },

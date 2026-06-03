@@ -79,3 +79,4 @@ Wrong:
 * Do not translate user data such as bookmark titles or folder names.
 * Do not create a second card style for ordinary bookmark items; use `BookmarkCard` for the main grid.
 * Do not add page-only visual primitives without adding them to the design-system preview when they become reusable.
+* Do not call a loading helper from `useEffect()` if that helper synchronously calls `setState()` before awaiting data. Initialize loading state up front, then update state from the async completion callback or a user event handler so `react-hooks/set-state-in-effect` stays green.

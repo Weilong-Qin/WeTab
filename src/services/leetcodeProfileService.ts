@@ -1,5 +1,6 @@
 import { browser, type Browser } from "wxt/browser";
 import type { LeetCodeProfileConfig, LeetCodeRegion } from "../types/settings";
+import { LeetCodeProfileLenientSchema, LeetCodeRegionSchema, safeParseOrDefault } from "../utils/schemas";
 
 const LEETCODE_PROFILE_STORAGE_KEY = "vtab.leetcodeProfile";
 
@@ -9,24 +10,16 @@ export const DEFAULT_LEETCODE_PROFILE_CONFIG: LeetCodeProfileConfig = {
 };
 
 export function normalizeLeetCodeProfileConfig(value: unknown): LeetCodeProfileConfig {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return { ...DEFAULT_LEETCODE_PROFILE_CONFIG };
-  }
-
-  const maybeConfig = value as Partial<Record<keyof LeetCodeProfileConfig, unknown>>;
+  const result = LeetCodeProfileLenientSchema.parse(value);
 
   return {
-    region: normalizeLeetCodeRegion(maybeConfig.region),
-    username: normalizeLeetCodeUsername(maybeConfig.username)
+    region: result.region as LeetCodeRegion,
+    username: result.username
   };
 }
 
 export function normalizeLeetCodeRegion(value: unknown): LeetCodeRegion {
-  if (value === "cn") {
-    return "cn";
-  }
-
-  return "com";
+  return safeParseOrDefault(LeetCodeRegionSchema, value, "com");
 }
 
 export function normalizeLeetCodeUsername(value: unknown): string {
