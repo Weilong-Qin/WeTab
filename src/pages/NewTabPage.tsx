@@ -179,7 +179,7 @@ export function NewTabPage() {
   async function handleEditorSubmit() {
     if (!editorState) return;
     clearEditorError();
-    const result = await withMutation(async () => {
+    await withMutation(async () => {
       await submitEditor(editorState.intent, editorValues, editorState.bookmark, editorState.folder);
       resetEditor();
     });
@@ -694,5 +694,4 @@ export function NewTabPage() {
     </AppShell>
   );
 }
-
 

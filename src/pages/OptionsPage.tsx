@@ -1,5 +1,4 @@
 import { type ChangeEvent } from "react";
-import { Button } from "../components/Button";
 import { GlassPanel } from "../components/GlassPanel";
 import { Icon } from "../components/Icon";
 import { LlmConfigForm } from "../components/LlmConfigForm";

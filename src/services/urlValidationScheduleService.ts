@@ -3,7 +3,7 @@ import type { BookmarkItem } from "../types/bookmarks";
 import type {
   UrlValidationScheduleConfig
 } from "../types/settings";
-import { safeParseOrDefault, UrlValidationScheduleLenientSchema } from "../utils/schemas";
+import { UrlValidationScheduleLenientSchema } from "../utils/schemas";
 import { validateBookmarkUrls, type UrlValidationTarget } from "./urlValidationService";
 
 const URL_VALIDATION_SCHEDULE_STORAGE_KEY = "vtab.urlValidationSchedule";

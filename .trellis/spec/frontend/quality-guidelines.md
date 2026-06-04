@@ -56,11 +56,13 @@ npm run zip
 * `npm run build` must produce a production WXT extension under `.output/chrome-mv3/`.
 * `npm run zip` must produce one or more release archives matching `.output/*.zip`.
 * Production artifacts must include `newtab` and `options` entrypoints only; `design-system` is development-only.
+* Keep only runtime extension assets in `public/`; WXT copies `public/` into the packaged extension. Store design-source images and Chrome Web Store-only artwork under `docs/store-assets/` or another non-runtime docs path unless the manifest or runtime UI references them.
 
 ### 4. Validation & Error Matrix
 
 * No `.output/*.zip` after `npm run zip` -> release workflow must fail.
 * Zip contains `design-system.html` -> production entrypoint filtering is wrong.
+* Zip contains large design-source images or store-only artwork -> those files were placed in `public/` instead of a non-runtime asset directory.
 * Build/typecheck run concurrently -> invalid because build cleans `.wxt/`.
 
 ### 5. Good/Base/Bad Cases
@@ -68,11 +70,13 @@ npm run zip
 * Good: tag `v0.1.0` runs test, lint, typecheck, build, zip, then uploads `.output/vtab-0.1.0-chrome.zip`.
 * Base: branch push runs the same package job and stores the zip as a workflow artifact only.
 * Bad: running raw `wxt zip` outside the npm `zip` script if filtering depends on `npm_lifecycle_event`.
+* Bad: storing a 1024px icon source or promo tile under `public/icon/`, because it is copied into `.output/chrome-mv3/` even when the manifest only references 16/32/48/128 icons.
 
 ### 6. Tests Required
 
 * Verify `npm run build` and `npm run zip` sequentially.
 * Inspect the zip contents when entrypoint filtering changes.
+* Inspect `.output/chrome-mv3/` after adding public assets; only manifest-referenced or runtime-referenced files should appear there.
 
 ### 7. Wrong vs Correct
 

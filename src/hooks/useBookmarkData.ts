@@ -16,8 +16,7 @@ import {
   restoreBookmarkNodeSnapshots,
   subscribeToBookmarkChanges,
   updateBookmark,
-  updateFolder,
-  type BookmarkNodeSnapshot
+  updateFolder
 } from "../services/bookmarkService";
 import type { BookmarkItem, FolderItem } from "../types/bookmarks";
 import {
