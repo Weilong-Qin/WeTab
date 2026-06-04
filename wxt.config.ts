@@ -9,8 +9,8 @@ export default defineConfig({
   manifest: {
     name: "WeTab",
     description: "A bookmark-powered browser homepage with a reusable Digital Air design system.",
-    version: "0.1.0",
-    permissions: ["bookmarks", "favicon", "storage"],
+    version: "1.0.0",
+    permissions: ["alarms", "bookmarks", "favicon", "storage"],
     host_permissions: [
       // Daily Feed API endpoints (always needed)
       "https://leetcode.com/*",
@@ -31,5 +31,5 @@ export default defineConfig({
   webExt: {
     disabled: true
   },
-  filterEntrypoints: isProductionPackage ? ["newtab", "options"] : undefined
+  filterEntrypoints: isProductionPackage ? ["background", "newtab", "options"] : undefined
 });
